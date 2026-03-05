@@ -9,6 +9,12 @@ module.exports = {
       devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     }),
   },
+  resolve: {
+    alias: {
+      '@comic-shelf/db': join(__dirname, '../../libs/db/src/index.ts'),
+      '@comic-shelf/shared-types': join(__dirname, '../../libs/shared-types/src/index.ts'),
+    },
+  },
   plugins: [
     new NxAppWebpackPlugin({
       target: 'node',

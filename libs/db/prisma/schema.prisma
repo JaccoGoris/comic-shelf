@@ -1,0 +1,226 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum CreatorRole {
+  WRITER
+  ARTIST
+  PENCILLER
+  INKER
+  COLORIST
+  COVER_ARTIST
+  LETTERER
+  EDITOR
+  CREATED_BY
+}
+
+enum GenreType {
+  GENRE
+  SUBGENRE
+}
+
+enum CollectionType {
+  COLLECTION
+  WISHLIST
+}
+
+// ─── Lookup / Normalized Tables ──────────────────────────
+
+model Publisher {
+  id     Int      @id @default(autoincrement())
+  name   String   @unique
+  comics Comic[]
+  series Series[]
+
+  @@map("publishers")
+}
+
+model Series {
+  id          Int        @id @default(autoincrement())
+  name        String
+  publisherId Int?       @map("publisher_id")
+  publisher   Publisher? @relation(fields: [publisherId], references: [id])
+  comics      Comic[]
+
+  @@unique([name, publisherId])
+  @@map("series")
+}
+
+model StoryArc {
+  id     Int             @id @default(autoincrement())
+  name   String          @unique
+  comics ComicStoryArc[]
+
+  @@map("story_arcs")
+}
+
+model Creator {
+  id     Int            @id @default(autoincrement())
+  name   String         @unique
+  comics ComicCreator[]
+
+  @@map("creators")
+}
+
+model Character {
+  id     Int              @id @default(autoincrement())
+  name   String           @unique
+  alias  String?
+  comics ComicCharacter[]
+
+  @@map("characters")
+}
+
+model Genre {
+  id     Int          @id @default(autoincrement())
+  name   String       @unique
+  comics ComicGenre[]
+
+  @@map("genres")
+}
+
+// ─── Join Tables ─────────────────────────────────────────
+
+model ComicStoryArc {
+  comicId    Int      @map("comic_id")
+  storyArcId Int      @map("story_arc_id")
+  comic      Comic    @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  storyArc   StoryArc @relation(fields: [storyArcId], references: [id], onDelete: Cascade)
+
+  @@id([comicId, storyArcId])
+  @@map("comic_story_arcs")
+}
+
+model ComicCreator {
+  comicId   Int         @map("comic_id")
+  creatorId Int         @map("creator_id")
+  role      CreatorRole
+  comic     Comic       @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  creator   Creator     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@id([comicId, creatorId, role])
+  @@map("comic_creators")
+}
+
+model ComicCharacter {
+  comicId     Int       @map("comic_id")
+  characterId Int       @map("character_id")
+  comic       Comic     @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([comicId, characterId])
+  @@map("comic_characters")
+}
+
+model ComicGenre {
+  comicId Int       @map("comic_id")
+  genreId Int       @map("genre_id")
+  type    GenreType @default(GENRE)
+  comic   Comic     @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  genre   Genre     @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([comicId, genreId, type])
+  @@map("comic_genres")
+}
+
+// ─── Core Comic Table ────────────────────────────────────
+
+model Comic {
+  id Int @id @default(autoincrement())
+
+  // External identifiers
+  itemId  BigInt  @unique @map("item_id")
+  barcode String?
+  metronId Int?   @unique @map("metron_id")
+
+  // Core info
+  title       String
+  synopsis    String?
+  coverDate   String?  @map("cover_date")
+  issueNumber String?  @map("issue_number")
+  legacyNumber String? @map("legacy_number")
+  volume      String?
+  month       String?
+  year        Int?
+  variantNumber String? @map("variant_number")
+  coverLetter String?  @map("cover_letter")
+  coverImageUrl String? @map("cover_image_url")
+
+  // Publication info
+  purchaseType     String? @map("purchase_type")
+  attributes       String?
+  country          String?
+  printing         String?
+  printRun         Int?    @map("print_run")
+  printOrderRatio  String? @map("print_order_ratio")
+  coverPriceRaw    String? @map("cover_price_raw")
+  coverPriceCents  Int?    @map("cover_price_cents")
+  coverPriceCurrency String? @map("cover_price_currency")
+  coverExclusive   String?  @map("cover_exclusive")
+  era              String?
+  language         String?
+  typeOfComic      String? @map("type_of_comic")
+  numberOfPages    Int?    @map("number_of_pages")
+
+  // Collection / ownership
+  preordered          Boolean  @default(false)
+  quantity            Int      @default(1)
+  loanedTo            String?  @map("loaned_to")
+  estimatedValue      String?  @map("estimated_value")
+  purchasePriceRaw    String?  @map("purchase_price_raw")
+  purchasePriceCents  Int?     @map("purchase_price_cents")
+  purchasePriceCurrency String? @map("purchase_price_currency")
+  purchaseDate        DateTime? @map("purchase_date")
+  purchasedFrom       String?   @map("purchased_from")
+  forSale             Boolean   @default(false) @map("for_sale")
+  soldFor             String?   @map("sold_for")
+  personalRating      String?   @map("personal_rating")
+  signedBy            String?   @map("signed_by")
+  condition           String?
+  read                Boolean   @default(false)
+
+  // Grading
+  gradedBy           String? @map("graded_by")
+  gradedRating       String? @map("graded_rating")
+  gradedLabelType    String? @map("graded_label_type")
+  gradedSerialNumber String? @map("graded_serial_number")
+  graderNotes        String? @map("grader_notes")
+  pageQuality        String? @map("page_quality")
+
+  // Organization
+  storageLocation    String? @map("storage_location")
+  notes              String?
+  owner              String?
+  collectionName     String? @map("collection_name")
+  dateAdded          DateTime? @map("date_added")
+  collectionWishlist CollectionType? @map("collection_wishlist")
+
+  // Relations
+  publisherId Int?       @map("publisher_id")
+  publisher   Publisher? @relation(fields: [publisherId], references: [id])
+  seriesId    Int?       @map("series_id")
+  series      Series?    @relation(fields: [seriesId], references: [id])
+
+  storyArcs  ComicStoryArc[]
+  creators   ComicCreator[]
+  characters ComicCharacter[]
+  genres     ComicGenre[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("comics")
+}

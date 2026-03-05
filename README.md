@@ -1,85 +1,141 @@
-# ComicShelf
+# Comic Shelf
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A full-stack comic book collection manager built with NestJS, React, Prisma, and PostgreSQL — orchestrated by Nx.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+## Architecture
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+| Layer | Tech | Port |
+|-------|------|------|
+| **API** | NestJS 11, Prisma 6 | `localhost:3000` |
+| **Web** | React 19, Vite 7 | `localhost:4200` |
+| **Database** | PostgreSQL 16 (Docker) | `localhost:5432` |
 
-## Finish your CI setup
+```
+apps/
+  api/         → NestJS REST API
+  web/         → React SPA
+libs/
+  db/          → Prisma schema, generated client, PrismaService
+  shared-types/→ TypeScript interfaces shared between API & web
+```
 
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/5WXgteeVMl)
+## Prerequisites
 
+- [Node.js](https://nodejs.org/) >= 18
+- [Docker](https://www.docker.com/) (for PostgreSQL)
+- npm (comes with Node.js)
 
-## Generate a library
+## Getting Started
+
+### 1. Install dependencies
 
 ```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
+npm install
 ```
 
-## Run tasks
-
-To build the library use:
+### 2. Start the database
 
 ```sh
-npx nx build pkg1
+npm run db:up
+# or: docker compose up -d
 ```
 
-To run any task with Nx use:
+This starts a PostgreSQL 16 container. Data is stored in a Docker named volume (`comic_shelf_data`), so it **persists across restarts**.
+
+### 3. Generate Prisma client & run migrations
 
 ```sh
-npx nx <target> <project-name>
+npm run db:generate
+npm run db:migrate
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
-
-```
-npx nx release
-```
-
-Pass `--dry-run` to see what would happen without actually releasing the library.
-
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+### 4. Start the applications
 
 ```sh
-npx nx sync
+# Start both API and web:
+npm start
+
+# Or start individually:
+npm run start:api   # http://localhost:3000/api
+npm run start:web   # http://localhost:4200
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+### 5. Import your comic collection
 
+1. Open `http://localhost:4200/import` in your browser
+2. Upload your `all-comics.json` file
+3. Wait for the import to complete — duplicates are skipped automatically
+
+Or via curl:
 ```sh
-npx nx sync:check
+curl -F "file=@/path/to/all-comics.json" http://localhost:3000/api/import
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+## Available Scripts
 
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start DB + API + Web |
+| `npm run start:api` | Start just the API |
+| `npm run start:web` | Start just the Web app |
+| `npm run db:up` | Start PostgreSQL container |
+| `npm run db:down` | Stop PostgreSQL container (data preserved) |
+| `npm run db:reset` | **Destroy** all data, recreate DB, run migrations |
+| `npm run db:studio` | Open Prisma Studio (data browser) |
+| `npm run db:migrate` | Run pending database migrations |
+| `npm run db:generate` | Regenerate Prisma client |
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Data Persistence
 
-## Install Nx Console
+PostgreSQL data is stored in a Docker **named volume**. This means:
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+| Action | Data survives? |
+|--------|---------------|
+| Restart app (`nx serve api`) | ✅ Yes |
+| Restart container (`docker compose restart`) | ✅ Yes |
+| Stop container (`docker compose down`) | ✅ Yes |
+| Remove volumes (`docker compose down -v`) | ❌ No |
+| `npm run db:reset` | ❌ No (intentional) |
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+You only need to re-import after `db:reset` or `docker compose down -v`.
 
-## Useful links
+## API Endpoints
 
-Learn more:
+### Comics
+- `GET /api/comics` — Paginated list with filters (`search`, `publisherId`, `seriesId`, `creatorId`, `characterId`, `genreId`, `read`, `sortBy`, `sortOrder`)
+- `GET /api/comics/:id` — Full comic detail with all relations
+- `DELETE /api/comics/:id` — Delete a comic
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Import
+- `POST /api/import` — Upload a JSON file (multipart form, field: `file`)
+
+### Resources (for filter dropdowns)
+- `GET /api/publishers?search=`
+- `GET /api/series?search=&publisherId=`
+- `GET /api/creators?search=`
+- `GET /api/characters?search=`
+- `GET /api/genres?search=`
+- `GET /api/story-arcs?search=`
+
+## Database Schema
+
+The database is fully normalized:
+
+- **Comic** — all 60 fields from the JSON import, plus parsed price (cents + currency)
+- **Publisher** — deduplicated, normalized publisher names
+- **Series** — unique per publisher
+- **Creator** — linked to comics via role (Writer, Artist, Penciller, etc.)
+- **Character** — name + alias parsed from "Iron Man (Tony Stark)" format
+- **Genre** — with type (Genre / Subgenre)
+- **StoryArc** — linked via join table
+
+## Environment Variables
+
+Copy `.env.example` to `.env` (already done at setup):
+
+```
+DATABASE_URL="postgresql://comic_shelf:comic_shelf@localhost:5432/comic_shelf?schema=public"
+```
 - [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 

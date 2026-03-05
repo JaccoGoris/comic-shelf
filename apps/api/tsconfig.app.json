@@ -3,13 +3,16 @@
   "compilerOptions": {
     "outDir": "dist",
     "types": ["node"],
-    "rootDir": "src",
+    "rootDir": "../../",
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    "composite": false,
+    "emitDeclarationOnly": false,
+    "declarationMap": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2021"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "../../libs/db/src/**/*.ts", "../../libs/shared-types/src/**/*.ts"],
   "exclude": [
     "out-tsc",
     "dist",
