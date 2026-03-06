@@ -150,6 +150,7 @@ model Comic {
   title       String
   synopsis    String?
   coverDate   String?  @map("cover_date")
+  storeDate   DateTime? @map("store_date")
   issueNumber String?  @map("issue_number")
   legacyNumber String? @map("legacy_number")
   volume      String?

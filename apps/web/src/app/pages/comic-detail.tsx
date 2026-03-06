@@ -283,8 +283,8 @@ export function ComicDetailPage() {
             Creators
           </Title>
           <Group gap="xs" wrap="wrap">
-            {comic.creators.map((c, i) => (
-              <Badge key={i} variant="light" size="lg">
+            {comic.creators.map((c) => (
+              <Badge key={`${c.creator.id}-${c.role}`} variant="light" size="lg">
                 {c.role.replace('_', ' ')}: {c.creator.name}
               </Badge>
             ))}
@@ -332,9 +332,9 @@ export function ComicDetailPage() {
             Genres
           </Title>
           <Group gap="xs" wrap="wrap">
-            {comic.genres.map((g, i) => (
+            {comic.genres.map((g) => (
               <Badge
-                key={i}
+                key={`${g.genre.id}-${g.type}`}
                 variant="light"
                 color={g.type === 'SUBGENRE' ? 'gray' : 'grape'}
                 size="lg"

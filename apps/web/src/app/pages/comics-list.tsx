@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getComics, getPublishers, getSeries, type ComicFilters } from '../../api/client';
+import { getComics, getPublishers, getSeries, startMetronSync, stopMetronSync, getMetronSyncStatus, type ComicFilters } from '../../api/client';
 import type {
   ComicListItemDto,
   PaginatedResponse,
   PublisherDto,
   SeriesDto,
+  MetronSyncStatusDto,
 } from '@comic-shelf/shared-types';
 import {
   Container,
@@ -25,8 +26,15 @@ import {
   Anchor,
   Divider,
   Button,
+  Progress,
+  Notification,
+  Tooltip,
 } from '@mantine/core';
-import { IconSearch, IconPlus } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { IconSearch, IconPlus, IconRefresh, IconPlayerStop } from '@tabler/icons-react';
+import { formatPrice } from '../../utils/format';
+import { getErrorMessage } from '../../utils/error';
+import { GROUPED_FETCH_LIMIT, PAGE_SIZE, SYNC_POLL_INTERVAL_MS } from '../../utils/constants';
 
 export function ComicsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,6 +43,9 @@ export function ComicsListPage() {
   const [series, setSeries] = useState<SeriesDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
+  const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const page = parseInt(searchParams.get('page') ?? '1', 10);
   const search = searchParams.get('search') ?? '';
@@ -49,8 +60,8 @@ export function ComicsListPage() {
     setLoading(true);
     try {
       const filters: ComicFilters = isGrouped
-        ? { page: 1, limit: 5000 }
-        : { page, limit: 24 };
+        ? { page: 1, limit: GROUPED_FETCH_LIMIT }
+        : { page, limit: PAGE_SIZE };
       if (search) filters.search = search;
       if (publisherId) filters.publisherId = parseInt(publisherId, 10);
       if (seriesId) filters.seriesId = parseInt(seriesId, 10);
@@ -58,7 +69,11 @@ export function ComicsListPage() {
       const data = await getComics(filters);
       setResult(data);
     } catch (err) {
-      console.error('Failed to fetch comics:', err);
+      notifications.show({
+        title: 'Error',
+        message: getErrorMessage(err, 'Failed to load comics. Please try again.'),
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
@@ -71,7 +86,50 @@ export function ComicsListPage() {
   useEffect(() => {
     getPublishers().then(setPublishers).catch(console.error);
     getSeries().then(setSeries).catch(console.error);
+    getMetronSyncStatus().then(setSyncStatus).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!syncStatus?.running) return;
+    const id = setInterval(async () => {
+      try {
+        const status = await getMetronSyncStatus();
+        setSyncStatus(status);
+        if (!status.running) {
+          clearInterval(id);
+          fetchComics();
+        }
+      } catch {
+        clearInterval(id);
+      }
+    }, SYNC_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [syncStatus?.running, fetchComics]);
+
+  const handleStartSync = async () => {
+    setSyncLoading(true);
+    setSyncError(null);
+    try {
+      setSyncStatus(await startMetronSync());
+    } catch (err: unknown) {
+      setSyncError(getErrorMessage(err, 'Failed to start sync'));
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleStopSync = async () => {
+    try {
+      setSyncStatus(await stopMetronSync());
+    } catch (err: unknown) {
+      setSyncError(getErrorMessage(err, 'Failed to stop sync'));
+    }
+  };
+
+  const syncProgress =
+    syncStatus && syncStatus.total > 0
+      ? Math.round((syncStatus.processed / syncStatus.total) * 100)
+      : 0;
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -89,15 +147,6 @@ export function ComicsListPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     updateFilter('search', searchInput);
-  };
-
-  const formatPrice = (cents?: number | null, currency?: string | null) => {
-    if (!cents) return '—';
-    const dollars = (cents / 100).toFixed(2);
-    if (currency === 'USD') return `$${dollars}`;
-    if (currency === 'EUR') return `€${dollars}`;
-    if (currency === 'GBP') return `£${dollars}`;
-    return `${dollars} ${currency ?? ''}`;
   };
 
   const publisherData = publishers.map((p) => ({
@@ -144,14 +193,77 @@ export function ComicsListPage() {
         <Title order={1}>
           Comic Collection
         </Title>
-        <Button
-          component={Link}
-          to="/add"
-          leftSection={<IconPlus size={16} />}
-        >
-          Add via Metron
-        </Button>
+        <Group>
+          <Button
+            component={Link}
+            to="/add"
+            leftSection={<IconPlus size={16} />}
+          >
+            Add via Metron
+          </Button>
+          {syncStatus?.running ? (
+            <Button
+              leftSection={<IconPlayerStop size={16} />}
+              variant="light"
+              color="red"
+              onClick={handleStopSync}
+            >
+              Stop Sync
+            </Button>
+          ) : (
+            <Tooltip label="Enrich library with Metron data by UPC">
+              <Button
+                leftSection={<IconRefresh size={16} />}
+                variant="light"
+                loading={syncLoading}
+                onClick={handleStartSync}
+              >
+                Metron Sync
+              </Button>
+            </Tooltip>
+          )}
+        </Group>
       </Group>
+
+      {/* Sync error */}
+      {syncError && (
+        <Notification color="red" mb="md" onClose={() => setSyncError(null)}>
+          {syncError}
+        </Notification>
+      )}
+
+      {/* Sync progress */}
+      {syncStatus && (
+        <Stack gap="xs" mb="md">
+          <Group justify="space-between">
+            <Text size="sm" fw={500}>
+              {syncStatus.running ? 'Metron Sync in progress…' : 'Last Metron Sync'}
+            </Text>
+            <Group gap="xs">
+              <Badge color="green" variant="light" size="sm">
+                {syncStatus.found} enriched
+              </Badge>
+              <Badge color="gray" variant="light" size="sm">
+                {syncStatus.skipped} skipped
+              </Badge>
+              {syncStatus.failed > 0 && (
+                <Badge color="red" variant="light" size="sm">
+                  {syncStatus.failed} failed
+                </Badge>
+              )}
+            </Group>
+          </Group>
+          <Progress
+            value={syncProgress}
+            color="violet"
+            size="sm"
+            animated={syncStatus.running}
+          />
+          <Text size="xs" c="dimmed">
+            {syncStatus.processed} of {syncStatus.total} comics processed ({syncProgress}%)
+          </Text>
+        </Stack>
+      )}
 
       {/* Filters */}
       <Group mb="md" grow wrap="wrap" align="flex-end">
@@ -235,7 +347,6 @@ export function ComicsListPage() {
                   <ComicCard
                     key={comic.id}
                     comic={comic}
-                    formatPrice={formatPrice}
                   />
                 ))}
               </SimpleGrid>
@@ -253,7 +364,6 @@ export function ComicsListPage() {
             <ComicCard
               key={comic.id}
               comic={comic}
-              formatPrice={formatPrice}
             />
           ))}
         </SimpleGrid>
@@ -289,10 +399,8 @@ export function ComicsListPage() {
 
 function ComicCard({
   comic,
-  formatPrice,
 }: {
   comic: ComicListItemDto;
-  formatPrice: (cents?: number | null, currency?: string | null) => string;
 }) {
   return (
     <Card
@@ -344,7 +452,7 @@ function ComicCard({
           </Text>
         )}
         <Text size="xs" c="dimmed">
-          {formatPrice(comic.coverPriceCents, comic.coverPriceCurrency)}
+          {formatPrice(comic.coverPriceCents, comic.coverPriceCurrency) ?? '—'}
         </Text>
       </Group>
     </Card>

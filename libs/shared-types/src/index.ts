@@ -200,3 +200,15 @@ export interface MetronIssueDetailDto {
 export interface MetronImportResultDto {
   comicId: number;
 }
+
+export interface MetronSyncStatusDto {
+  running: boolean;
+  cancelled: boolean;
+  total: number;
+  processed: number;
+  found: number;
+  skipped: number;
+  failed: number;
+  startedAt: string | null;
+  completedAt: string | null;
+}

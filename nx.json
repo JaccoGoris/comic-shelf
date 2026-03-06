@@ -90,15 +90,15 @@
     "@nx/react": {
       "application": {
         "babel": true,
-        "style": "scss",
+        "style": "none",
         "linter": "eslint",
         "bundler": "vite"
       },
       "component": {
-        "style": "scss"
+        "style": "none"
       },
       "library": {
-        "style": "scss",
+        "style": "none",
         "linter": "eslint"
       }
     }

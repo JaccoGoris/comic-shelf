@@ -14,7 +14,6 @@
     "composite": false,
     "emitDeclarationOnly": false,
     "declarationMap": false,
-    "rootDir": "../../",
     "module": "esnext",
     "moduleResolution": "bundler"
   },
@@ -37,5 +36,5 @@
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx", "../../libs/shared-types/src/**/*.ts"]
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"]
 }

@@ -4,23 +4,23 @@ import { CollectionType, CreatorRole } from '@prisma/client';
 import { UpsertService } from '../shared/upsert.service';
 
 interface RawComic {
-  'Item Id': number | null;
+  'Item Id': string | number | null;
   Barcode: number | string | null;
   Title: string;
-  Synopsis: string | null;
+  Synopsis: string | number | null;
   'Cover Date': string | null;
   Publisher: string | null;
-  'Issue Number': string | null;
-  'Legacy Number': string | null;
-  Volume: string | null;
+  'Issue Number': string | number | null;
+  'Legacy Number': string | number | null;
+  Volume: string | number | null;
   Month: string | null;
   Year: number | null;
-  'Variant Number': string | null;
-  'Cover Letter': string | null;
+  'Variant Number': string | number | null;
+  'Cover Letter': string | number | null;
   'Purchase Type': string | null;
   Attributes: string | null;
   Country: string | null;
-  Printing: string | null;
+  Printing: string | number | null;
   'Print Run': number | null;
   'Print Order Ratio': string | null;
   'Cover Price': string | null;
@@ -44,7 +44,7 @@ interface RawComic {
   Letterer: string | null;
   Editor: string | null;
   Preordered: boolean;
-  Quantity: number | null;
+  Quantity: string | number | null;
   'Loaned To': string | null;
   'Estimated Value': string | null;
   'Purchase Price': string | null;
@@ -52,7 +52,7 @@ interface RawComic {
   'Purchased From': string | null;
   'For Sale': boolean;
   'Sold For': string | null;
-  'Personal Rating': string | null;
+  'Personal Rating': string | number | null;
   'Signed By': string | null;
   Condition: string | null;
   Read: boolean;
@@ -98,7 +98,7 @@ export class ImportService {
             continue;
           }
 
-          const itemId = BigInt(Math.round(raw['Item Id']));
+          const itemId = BigInt(String(raw['Item Id']).trim());
 
           // Check if already imported
           const existing = await this.prisma.comic.findUnique({
@@ -167,19 +167,19 @@ export class ImportService {
         itemId,
         barcode,
         title: raw.Title,
-        synopsis: raw.Synopsis ?? null,
+        synopsis: raw.Synopsis != null ? String(raw.Synopsis) : null,
         coverDate: raw['Cover Date'] ?? null,
-        issueNumber: raw['Issue Number'] ?? null,
-        legacyNumber: raw['Legacy Number'] ?? null,
-        volume: raw.Volume ?? null,
+        issueNumber: raw['Issue Number'] != null ? String(raw['Issue Number']) : null,
+        legacyNumber: raw['Legacy Number'] != null ? String(raw['Legacy Number']) : null,
+        volume: raw.Volume != null ? String(raw.Volume) : null,
         month: raw.Month ?? null,
         year: raw.Year ? Math.round(raw.Year) : null,
-        variantNumber: raw['Variant Number'] ?? null,
-        coverLetter: raw['Cover Letter'] ?? null,
+        variantNumber: raw['Variant Number'] != null ? String(raw['Variant Number']) : null,
+        coverLetter: raw['Cover Letter'] != null ? String(raw['Cover Letter']) : null,
         purchaseType: raw['Purchase Type'] ?? null,
         attributes: raw.Attributes ?? null,
         country: raw.Country ?? null,
-        printing: raw.Printing ?? null,
+        printing: raw.Printing != null ? String(raw.Printing) : null,
         printRun: raw['Print Run'] ? Math.round(raw['Print Run']) : null,
         printOrderRatio: raw['Print Order Ratio'] ?? null,
         coverPriceRaw: raw['Cover Price'] ?? null,
@@ -193,7 +193,7 @@ export class ImportService {
           ? Math.round(raw['Number of Pages'])
           : null,
         preordered: raw.Preordered ?? false,
-        quantity: raw.Quantity ? Math.round(raw.Quantity) : 1,
+        quantity: raw.Quantity ? Math.round(Number(raw.Quantity)) : 1,
         loanedTo: raw['Loaned To'] ?? null,
         estimatedValue: raw['Estimated Value'] ?? null,
         purchasePriceRaw: raw['Purchase Price'] ?? null,
@@ -203,7 +203,7 @@ export class ImportService {
         purchasedFrom: raw['Purchased From'] ?? null,
         forSale: raw['For Sale'] ?? false,
         soldFor: raw['Sold For'] ?? null,
-        personalRating: raw['Personal Rating'] ?? null,
+        personalRating: raw['Personal Rating'] != null ? String(raw['Personal Rating']) : null,
         signedBy: raw['Signed By'] ?? null,
         condition: raw.Condition ?? null,
         read: raw.Read ?? false,
@@ -279,8 +279,10 @@ export class ImportService {
           name,
           alias,
         );
-        await this.prisma.comicCharacter.create({
-          data: { comicId: comic.id, characterId: character.id },
+        await this.prisma.comicCharacter.upsert({
+          where: { comicId_characterId: { comicId: comic.id, characterId: character.id } },
+          create: { comicId: comic.id, characterId: character.id },
+          update: {},
         });
       }
     }

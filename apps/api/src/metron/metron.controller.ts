@@ -2,10 +2,12 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   Query,
   BadRequestException,
   ParseIntPipe,
+  HttpCode,
 } from '@nestjs/common';
 import { MetronService } from './metron.service';
 
@@ -29,5 +31,22 @@ export class MetronController {
   @Post('import/:id')
   async importIssue(@Param('id', ParseIntPipe) id: number) {
     return this.metronService.importIssue(id);
+  }
+
+  @Post('sync')
+  @HttpCode(202)
+  async startSync() {
+    return this.metronService.startSync();
+  }
+
+  @Get('sync/status')
+  getSyncStatus() {
+    return this.metronService.getSyncStatus();
+  }
+
+  @Delete('sync')
+  @HttpCode(200)
+  stopSync() {
+    return this.metronService.stopSync();
   }
 }

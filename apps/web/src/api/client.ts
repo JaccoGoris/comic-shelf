@@ -13,10 +13,11 @@ import type {
   MetronSearchResultDto,
   MetronIssueDetailDto,
   MetronImportResultDto,
+  MetronSyncStatusDto,
 } from '@comic-shelf/shared-types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
 });
 
 // ─── Comics ──────────────────────────────────────────────
@@ -147,5 +148,20 @@ export async function importMetronIssue(
   metronId: number,
 ): Promise<MetronImportResultDto> {
   const { data } = await api.post(`/metron/import/${metronId}`);
+  return data;
+}
+
+export async function startMetronSync(): Promise<MetronSyncStatusDto> {
+  const { data } = await api.post('/metron/sync');
+  return data;
+}
+
+export async function getMetronSyncStatus(): Promise<MetronSyncStatusDto> {
+  const { data } = await api.get('/metron/sync/status');
+  return data;
+}
+
+export async function stopMetronSync(): Promise<MetronSyncStatusDto> {
+  const { data } = await api.delete('/metron/sync');
   return data;
 }

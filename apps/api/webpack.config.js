@@ -1,7 +1,15 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 const { join } = require('path');
 
-module.exports = {
+module.exports = (config, { options } = {}) => ({
+  watch: options?.watch,
+  watchOptions: {
+    ignored: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/libs/db/generated/**',
+    ],
+  },
   output: {
     path: join(__dirname, 'dist'),
     clean: true,
@@ -28,4 +36,4 @@ module.exports = {
       sourceMaps: true,
     }),
   ],
-};
+});

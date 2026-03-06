@@ -9,20 +9,13 @@ import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '@comic-shelf/db';
 import { CreatorRole } from '@prisma/client';
 import { UpsertService } from '../shared/upsert.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
+import type { AxiosResponse } from 'axios';
 import type {
   MetronSearchResultDto,
   MetronIssueDetailDto,
+  MetronSyncStatusDto,
 } from '@comic-shelf/shared-types';
-
-// ─── Rate limiter ────────────────────────────────────────
-// Metron API: 20 requests/minute, 5000 requests/day
-
-interface RateLimiterState {
-  minuteTimestamps: number[];
-  dayCount: number;
-  dayStart: number;
-}
 
 // ─── Metron API response interfaces ─────────────────────
 
@@ -114,10 +107,17 @@ const ROLE_MAP: Record<string, CreatorRole> = {
 @Injectable()
 export class MetronService {
   private readonly logger = new Logger(MetronService.name);
-  private readonly rateLimiter: RateLimiterState = {
-    minuteTimestamps: [],
-    dayCount: 0,
-    dayStart: Date.now(),
+  private readonly syncState = {
+    running: false,
+    cancelled: false,
+    cancelRequested: false,
+    total: 0,
+    processed: 0,
+    found: 0,
+    skipped: 0,
+    failed: 0,
+    startedAt: null as Date | null,
+    completedAt: null as Date | null,
   };
 
   constructor(
@@ -126,56 +126,46 @@ export class MetronService {
     private readonly upsertService: UpsertService,
   ) {}
 
-  // ─── Rate limiting ─────────────────────────────────────
+  // ─── API wrapper ───────────────────────────────────────
 
-  private checkRateLimit(): void {
-    const now = Date.now();
-    const oneMinuteAgo = now - 60_000;
-    const oneDayMs = 24 * 60 * 60 * 1000;
-
-    // Reset daily counter if a new day
-    if (now - this.rateLimiter.dayStart > oneDayMs) {
-      this.rateLimiter.dayCount = 0;
-      this.rateLimiter.dayStart = now;
+  private async callApi<T>(
+    request: () => Observable<AxiosResponse<T>>,
+    context: string,
+    maxRetries = 3,
+  ): Promise<AxiosResponse<T>> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await firstValueFrom(request());
+      } catch (error) {
+        const axiosError = error as {
+          response?: { status: number; headers: Record<string, string>; data: unknown };
+        };
+        if (axiosError.response?.status === 429 && attempt < maxRetries) {
+          const waitMs = parseRetryAfter(axiosError.response.headers['retry-after']);
+          this.logger.warn(
+            `[${context}] 429 — Retry-After: ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})`,
+          );
+          await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+        throw error;
+      }
     }
-
-    // Remove timestamps older than 1 minute
-    this.rateLimiter.minuteTimestamps =
-      this.rateLimiter.minuteTimestamps.filter((t) => t > oneMinuteAgo);
-
-    if (this.rateLimiter.minuteTimestamps.length >= 20) {
-      throw new HttpException(
-        'Metron API rate limit reached (20 requests/minute). Please wait and try again.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    if (this.rateLimiter.dayCount >= 5000) {
-      throw new HttpException(
-        'Metron API daily rate limit reached (5,000 requests/day). Try again tomorrow.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-  }
-
-  private recordApiCall(): void {
-    this.rateLimiter.minuteTimestamps.push(Date.now());
-    this.rateLimiter.dayCount++;
+    // Unreachable — loop always returns or throws — but satisfies TypeScript
+    throw new Error('callApi exhausted retries');
   }
 
   // ─── API calls ─────────────────────────────────────────
 
   async searchByUpc(upc: string): Promise<MetronSearchResultDto[]> {
-    this.checkRateLimit();
-
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+      const response = await this.callApi(
+        () => this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
           '/api/issue/',
           { params: { upc } },
         ),
+        'searchByUpc',
       );
-      this.recordApiCall();
 
       return response.data.results.map((item) => ({
         id: item.id,
@@ -196,13 +186,11 @@ export class MetronService {
   }
 
   async getIssueDetail(metronId: number): Promise<MetronIssueDetailDto> {
-    this.checkRateLimit();
-
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<MetronIssueDetail>(`/api/issue/${metronId}/`),
+      const response = await this.callApi(
+        () => this.httpService.get<MetronIssueDetail>(`/api/issue/${metronId}/`),
+        'getIssueDetail',
       );
-      this.recordApiCall();
 
       const issue = response.data;
       return {
@@ -398,11 +386,128 @@ export class MetronService {
     return { comicId: comic.id };
   }
 
+  // ─── Library sync ──────────────────────────────────────
+
+  getSyncStatus(): MetronSyncStatusDto {
+    return {
+      running: this.syncState.running,
+      cancelled: this.syncState.cancelled,
+      total: this.syncState.total,
+      processed: this.syncState.processed,
+      found: this.syncState.found,
+      skipped: this.syncState.skipped,
+      failed: this.syncState.failed,
+      startedAt: this.syncState.startedAt?.toISOString() ?? null,
+      completedAt: this.syncState.completedAt?.toISOString() ?? null,
+    };
+  }
+
+  stopSync(): MetronSyncStatusDto {
+    if (!this.syncState.running) {
+      return this.getSyncStatus();
+    }
+    this.syncState.cancelRequested = true;
+    return this.getSyncStatus();
+  }
+
+  async startSync(): Promise<MetronSyncStatusDto> {
+    if (this.syncState.running) {
+      throw new ConflictException('A sync is already in progress.');
+    }
+    const comics = await this.prisma.comic.findMany({
+      where: { barcode: { not: null }, metronId: null },
+      select: { id: true, barcode: true },
+    });
+    Object.assign(this.syncState, {
+      running: true,
+      cancelled: false,
+      cancelRequested: false,
+      total: comics.length,
+      processed: 0,
+      found: 0,
+      skipped: 0,
+      failed: 0,
+      startedAt: new Date(),
+      completedAt: null,
+    });
+    this.runSync(comics).catch((err) => {
+      this.logger.error('Sync crashed unexpectedly', err);
+      this.syncState.running = false;
+      this.syncState.completedAt = new Date();
+    });
+    return this.getSyncStatus();
+  }
+
+  private async runSync(
+    comics: { id: number; barcode: string | null }[],
+  ): Promise<void> {
+    for (const comic of comics) {
+      if (this.syncState.cancelRequested) {
+        this.syncState.cancelled = true;
+        break;
+      }
+      if (!comic.barcode) {
+        this.syncState.skipped++;
+        this.syncState.processed++;
+        continue;
+      }
+      try {
+        const res = await this.callApi(
+          () => this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+            '/api/issue/',
+            { params: { upc: comic.barcode } },
+          ),
+          `runSync:comic#${comic.id}`,
+          5,
+        );
+        if (res.data.count > 0 && res.data.results.length > 0) {
+          const item = res.data.results[0];
+          const existing = await this.prisma.comic.findUnique({
+            where: { id: comic.id },
+            select: { coverDate: true, volume: true, year: true },
+          });
+          await this.prisma.comic.update({
+            where: { id: comic.id },
+            data: {
+              metronId: item.id,
+              coverImageUrl: item.image ?? undefined,
+              storeDate: item.store_date ? new Date(item.store_date) : undefined,
+              coverDate:
+                !existing?.coverDate && item.cover_date
+                  ? item.cover_date
+                  : undefined,
+              volume:
+                !existing?.volume && item.series.volume
+                  ? String(item.series.volume)
+                  : undefined,
+              year:
+                !existing?.year && item.series.year_began
+                  ? item.series.year_began
+                  : undefined,
+            },
+          });
+          this.syncState.found++;
+        } else {
+          this.syncState.skipped++;
+        }
+      } catch (err) {
+        this.logger.warn(`Sync failed for comic ${comic.id}: ${err}`);
+        this.syncState.failed++;
+      }
+      this.syncState.processed++;
+    }
+    this.syncState.running = false;
+    this.syncState.completedAt = new Date();
+    this.logger.log(
+      `Sync complete: ${this.syncState.found} found, ${this.syncState.skipped} skipped, ${this.syncState.failed} failed`,
+    );
+  }
+
   // ─── Error handling ────────────────────────────────────
 
   private handleApiError(error: unknown, method: string): never {
     const axiosError = error as {
-      response?: { status: number; data: unknown };
+      response?: { status: number; headers: Record<string, string>; data: unknown };
       message?: string;
     };
 
@@ -424,8 +529,11 @@ export class MetronService {
         );
       }
       if (status === 429) {
+        const retryAfter = axiosError.response.headers?.['retry-after'];
         throw new HttpException(
-          'Metron API rate limit exceeded. Please wait and try again.',
+          retryAfter
+            ? `Metron API rate limit exceeded. Retry after ${retryAfter}s.`
+            : 'Metron API rate limit exceeded. Please wait and try again.',
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
@@ -450,4 +558,13 @@ export class MetronService {
 function mapMetronRole(roleName: string): CreatorRole | null {
   const key = roleName.toLowerCase().trim();
   return ROLE_MAP[key] ?? null;
+}
+
+function parseRetryAfter(header: string | undefined): number {
+  if (!header) return 60_000;
+  const seconds = parseInt(header, 10);
+  if (!isNaN(seconds)) return seconds * 1000;
+  const date = Date.parse(header);
+  if (!isNaN(date)) return Math.max(0, date - Date.now());
+  return 60_000;
 }
