@@ -15,6 +15,7 @@ import type {
   MetronSearchResultDto,
   MetronIssueDetailDto,
   MetronSyncStatusDto,
+  MetronSingleSyncResultDto,
 } from '@comic-shelf/shared-types';
 
 // ─── Metron API response interfaces ─────────────────────
@@ -501,6 +502,159 @@ export class MetronService {
     this.logger.log(
       `Sync complete: ${this.syncState.found} found, ${this.syncState.skipped} skipped, ${this.syncState.failed} failed`,
     );
+  }
+
+  // ─── Single-issue sync ────────────────────────────────
+
+  async syncSingleIssue(comicId: number): Promise<MetronSingleSyncResultDto> {
+    const comic = await this.prisma.comic.findUnique({
+      where: { id: comicId },
+      select: {
+        id: true,
+        barcode: true,
+        metronId: true,
+        coverDate: true,
+        volume: true,
+        year: true,
+        synopsis: true,
+        numberOfPages: true,
+        coverPriceCents: true,
+        coverPriceCurrency: true,
+        coverImageUrl: true,
+        storeDate: true,
+      },
+    });
+    if (!comic) {
+      throw new HttpException('Comic not found.', HttpStatus.NOT_FOUND);
+    }
+    if (comic.metronId) {
+      return { status: 'skipped', reason: 'Already synced with Metron' };
+    }
+    if (!comic.barcode) {
+      return { status: 'skipped', reason: 'No barcode available for Metron lookup' };
+    }
+
+    try {
+      const res = await this.callApi(
+        () => this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+          '/api/issue/',
+          { params: { upc: comic.barcode } },
+        ),
+        `syncSingle:comic#${comicId}`,
+        5,
+      );
+
+      if (res.data.count === 0 || res.data.results.length === 0) {
+        return { status: 'skipped', reason: `No matching issue found on Metron for UPC ${comic.barcode}` };
+      }
+
+      const metronId = res.data.results[0].id;
+      const detail = await this.getIssueDetail(metronId);
+      const updatedFields: string[] = [];
+
+      // Build update data, only filling in missing fields
+      const updateData: Record<string, unknown> = { metronId: detail.id };
+      updatedFields.push('metronId');
+
+      if (detail.image) {
+        updateData.coverImageUrl = detail.image;
+        updatedFields.push('cover image');
+      }
+      if (detail.storeDate) {
+        updateData.storeDate = new Date(detail.storeDate);
+        updatedFields.push('store date');
+      }
+      if (!comic.coverDate && detail.coverDate) {
+        updateData.coverDate = detail.coverDate;
+        updatedFields.push('cover date');
+      }
+      if (!comic.volume && detail.series.volume) {
+        updateData.volume = String(detail.series.volume);
+        updatedFields.push('volume');
+      }
+      if (!comic.year && detail.series.yearBegan) {
+        updateData.year = detail.series.yearBegan;
+        updatedFields.push('year');
+      }
+      if (!comic.synopsis && detail.desc) {
+        updateData.synopsis = detail.desc;
+        updatedFields.push('synopsis');
+      }
+      if (!comic.numberOfPages && detail.page) {
+        updateData.numberOfPages = detail.page;
+        updatedFields.push('pages');
+      }
+      if (!comic.coverPriceCents && detail.price) {
+        const parsed = parseFloat(detail.price);
+        if (!isNaN(parsed)) {
+          updateData.coverPriceCents = Math.round(parsed * 100);
+          updateData.coverPriceCurrency = detail.priceCurrency ?? null;
+          updatedFields.push('cover price');
+        }
+      }
+
+      await this.prisma.comic.update({
+        where: { id: comicId },
+        data: updateData,
+      });
+
+      // Upsert story arcs
+      for (const arc of detail.arcs) {
+        const arcRecord = await this.upsertService.upsertStoryArc(arc.name);
+        await this.prisma.comicStoryArc.upsert({
+          where: { comicId_storyArcId: { comicId, storyArcId: arcRecord.id } },
+          create: { comicId, storyArcId: arcRecord.id },
+          update: {},
+        });
+      }
+      if (detail.arcs.length > 0) updatedFields.push('story arcs');
+
+      // Upsert creators
+      for (const credit of detail.credits) {
+        const creatorRecord = await this.upsertService.upsertCreator(credit.creator);
+        for (const role of credit.role) {
+          const mappedRole = mapMetronRole(role.name);
+          if (!mappedRole) continue;
+          await this.prisma.comicCreator.upsert({
+            where: {
+              comicId_creatorId_role: { comicId, creatorId: creatorRecord.id, role: mappedRole },
+            },
+            create: { comicId, creatorId: creatorRecord.id, role: mappedRole },
+            update: {},
+          });
+        }
+      }
+      if (detail.credits.length > 0) updatedFields.push('creators');
+
+      // Upsert characters
+      for (const char of detail.characters) {
+        const character = await this.upsertService.upsertCharacter(char.name);
+        await this.prisma.comicCharacter.upsert({
+          where: { comicId_characterId: { comicId, characterId: character.id } },
+          create: { comicId, characterId: character.id },
+          update: {},
+        });
+      }
+      if (detail.characters.length > 0) updatedFields.push('characters');
+
+      // Upsert genres
+      for (const genre of detail.series.genres) {
+        const genreRecord = await this.upsertService.upsertGenre(genre.name);
+        await this.prisma.comicGenre.upsert({
+          where: { comicId_genreId_type: { comicId, genreId: genreRecord.id, type: 'GENRE' } },
+          create: { comicId, genreId: genreRecord.id, type: 'GENRE' },
+          update: {},
+        });
+      }
+      if (detail.series.genres.length > 0) updatedFields.push('genres');
+
+      this.logger.log(`Single sync for comic #${comicId}: matched Metron #${metronId}`);
+      return { status: 'synced', updatedFields };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Single sync failed for comic #${comicId}: ${message}`);
+      return { status: 'failed', reason: message };
+    }
   }
 
   // ─── Error handling ────────────────────────────────────

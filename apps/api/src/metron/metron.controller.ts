@@ -33,6 +33,11 @@ export class MetronController {
     return this.metronService.importIssue(id);
   }
 
+  @Post('sync/:comicId')
+  async syncSingleIssue(@Param('comicId', ParseIntPipe) comicId: number) {
+    return this.metronService.syncSingleIssue(comicId);
+  }
+
   @Post('sync')
   @HttpCode(202)
   async startSync() {

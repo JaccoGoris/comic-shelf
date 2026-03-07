@@ -1,14 +1,17 @@
 import {
   Controller,
   Get,
+  Patch,
   Param,
   Query,
+  Body,
   ParseIntPipe,
   Delete,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ComicsService } from './comics.service';
+import type { UpdateComicDto } from '@comic-shelf/shared-types';
 
 @Controller('comics')
 export class ComicsController {
@@ -48,6 +51,14 @@ export class ComicsController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.comicsService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateComicDto,
+  ) {
+    return this.comicsService.update(id, dto);
   }
 
   @Delete(':id')

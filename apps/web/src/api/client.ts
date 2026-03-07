@@ -14,6 +14,8 @@ import type {
   MetronIssueDetailDto,
   MetronImportResultDto,
   MetronSyncStatusDto,
+  MetronSingleSyncResultDto,
+  UpdateComicDto,
 } from '@comic-shelf/shared-types';
 
 const api = axios.create({
@@ -49,6 +51,11 @@ export async function getComics(
 
 export async function getComic(id: number): Promise<ComicDetailDto> {
   const { data } = await api.get(`/comics/${id}`);
+  return data;
+}
+
+export async function updateComic(id: number, dto: UpdateComicDto): Promise<ComicDetailDto> {
+  const { data } = await api.patch(`/comics/${id}`, dto);
   return data;
 }
 
@@ -163,5 +170,10 @@ export async function getMetronSyncStatus(): Promise<MetronSyncStatusDto> {
 
 export async function stopMetronSync(): Promise<MetronSyncStatusDto> {
   const { data } = await api.delete('/metron/sync');
+  return data;
+}
+
+export async function syncSingleComic(comicId: number): Promise<MetronSingleSyncResultDto> {
+  const { data } = await api.post(`/metron/sync/${comicId}`);
   return data;
 }
