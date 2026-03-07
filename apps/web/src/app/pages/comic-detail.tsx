@@ -7,12 +7,10 @@ import {
   syncSingleComic,
 } from '../../api/client';
 import type { ComicDetailDto, UpdateComicDto } from '@comic-shelf/shared-types';
+import placeholderImg from '../../assets/comic-card-placeholder.webp';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import {
-  comicFormSchema,
-  type ComicFormValues,
-} from './comic-detail-schema';
+import { comicFormSchema, type ComicFormValues } from './comic-detail-schema';
 import {
   Container,
   Title,
@@ -383,11 +381,7 @@ export function ComicDetailPage() {
   if (error) {
     return (
       <Container size="sm" py="xl">
-        <Alert
-          icon={<IconAlertCircle size={16} />}
-          title="Error"
-          color="red"
-        >
+        <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
           {error}
         </Alert>
       </Container>
@@ -418,14 +412,13 @@ export function ComicDetailPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start" mb="lg" wrap="wrap">
           <Group align="flex-start" gap="lg" wrap="wrap">
-            {comic.coverImageUrl && (
-              <Image
-                src={comic.coverImageUrl}
-                w={200}
-                radius="md"
-                alt={comic.title}
-              />
-            )}
+            <Image
+              src={comic.coverImageUrl ?? placeholderImg}
+              w={200}
+              radius="md"
+              fit="cover"
+              alt={comic.title}
+            />
             <div>
               <TextInput
                 size="xl"
@@ -782,9 +775,7 @@ export function ComicDetailPage() {
               variant="light"
               size="xs"
               leftSection={<IconPlus size={14} />}
-              onClick={() =>
-                form.insertListItem('characters', { name: '' })
-              }
+              onClick={() => form.insertListItem('characters', { name: '' })}
             >
               Add Character
             </Button>
@@ -823,9 +814,7 @@ export function ComicDetailPage() {
               variant="light"
               size="xs"
               leftSection={<IconPlus size={14} />}
-              onClick={() =>
-                form.insertListItem('storyArcs', { name: '' })
-              }
+              onClick={() => form.insertListItem('storyArcs', { name: '' })}
             >
               Add Story Arc
             </Button>

@@ -1,6 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getComics, getPublishers, getSeries, startMetronSync, stopMetronSync, getMetronSyncStatus, type ComicFilters } from '../../api/client';
+import {
+  getComics,
+  getPublishers,
+  getSeries,
+  startMetronSync,
+  stopMetronSync,
+  getMetronSyncStatus,
+  type ComicFilters,
+} from '../../../api/client';
 import type {
   ComicListItemDto,
   PaginatedResponse,
@@ -14,11 +22,9 @@ import {
   TextInput,
   Select,
   SimpleGrid,
-  Card,
   Text,
   Badge,
   Group,
-  Image,
   Pagination,
   Loader,
   Center,
@@ -31,19 +37,33 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconSearch, IconPlus, IconRefresh, IconPlayerStop } from '@tabler/icons-react';
-import { formatPrice } from '../../utils/format';
-import { getErrorMessage } from '../../utils/error';
-import { GROUPED_FETCH_LIMIT, PAGE_SIZE, SYNC_POLL_INTERVAL_MS } from '../../utils/constants';
+import {
+  IconSearch,
+  IconPlus,
+  IconRefresh,
+  IconPlayerStop,
+} from '@tabler/icons-react';
+import { getErrorMessage } from '../../../utils/error';
+import {
+  GROUPED_FETCH_LIMIT,
+  PAGE_SIZE,
+  SYNC_POLL_INTERVAL_MS,
+} from '../../../utils/constants';
+import { ComicCard } from './comic-card';
 
 export function ComicsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [result, setResult] = useState<PaginatedResponse<ComicListItemDto> | null>(null);
+  const [result, setResult] =
+    useState<PaginatedResponse<ComicListItemDto> | null>(null);
   const [publishers, setPublishers] = useState<PublisherDto[]>([]);
   const [series, setSeries] = useState<SeriesDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
-  const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(null);
+  const [searchInput, setSearchInput] = useState(
+    searchParams.get('search') ?? ''
+  );
+  const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(
+    null
+  );
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -71,7 +91,10 @@ export function ComicsListPage() {
     } catch (err) {
       notifications.show({
         title: 'Error',
-        message: getErrorMessage(err, 'Failed to load comics. Please try again.'),
+        message: getErrorMessage(
+          err,
+          'Failed to load comics. Please try again.'
+        ),
         color: 'red',
       });
     } finally {
@@ -84,9 +107,21 @@ export function ComicsListPage() {
   }, [fetchComics]);
 
   useEffect(() => {
-    getPublishers().then(setPublishers).catch(console.error);
-    getSeries().then(setSeries).catch(console.error);
-    getMetronSyncStatus().then(setSyncStatus).catch(() => {});
+    getPublishers()
+      .then(setPublishers)
+      .catch((err) => {
+        console.error('Failed to get publishers', err);
+      });
+    getSeries()
+      .then(setSeries)
+      .catch((err) => {
+        console.error('Failed to get series', err);
+      });
+    getMetronSyncStatus()
+      .then(setSyncStatus)
+      .catch((err) => {
+        console.error('Failed to get Metron sync status', err);
+      });
   }, []);
 
   useEffect(() => {
@@ -190,9 +225,7 @@ export function ComicsListPage() {
   return (
     <Container size="xl" py="md">
       <Group justify="space-between" align="center" mb="lg">
-        <Title order={1}>
-          Comic Collection
-        </Title>
+        <Title order={1}>Comic Collection</Title>
         <Group>
           <Button
             component={Link}
@@ -237,7 +270,9 @@ export function ComicsListPage() {
         <Stack gap="xs" mb="md">
           <Group justify="space-between">
             <Text size="sm" fw={500}>
-              {syncStatus.running ? 'Metron Sync in progress…' : 'Last Metron Sync'}
+              {syncStatus.running
+                ? 'Metron Sync in progress…'
+                : 'Last Metron Sync'}
             </Text>
             <Group gap="xs">
               <Badge color="green" variant="light" size="sm">
@@ -260,7 +295,8 @@ export function ComicsListPage() {
             animated={syncStatus.running}
           />
           <Text size="xs" c="dimmed">
-            {syncStatus.processed} of {syncStatus.total} comics processed ({syncProgress}%)
+            {syncStatus.processed} of {syncStatus.total} comics processed (
+            {syncProgress}%)
           </Text>
         </Stack>
       )}
@@ -344,10 +380,7 @@ export function ComicsListPage() {
                 spacing="md"
               >
                 {comics.map((comic) => (
-                  <ComicCard
-                    key={comic.id}
-                    comic={comic}
-                  />
+                  <ComicCard key={comic.id} comic={comic} />
                 ))}
               </SimpleGrid>
             </div>
@@ -356,15 +389,9 @@ export function ComicsListPage() {
       )}
 
       {result && !loading && result.data.length > 0 && !groupedComics && (
-        <SimpleGrid
-          cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }}
-          spacing="md"
-        >
+        <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
           {result.data.map((comic) => (
-            <ComicCard
-              key={comic.id}
-              comic={comic}
-            />
+            <ComicCard key={comic.id} comic={comic} />
           ))}
         </SimpleGrid>
       )}
@@ -387,74 +414,10 @@ export function ComicsListPage() {
           <Pagination
             total={result.totalPages}
             value={page}
-            onChange={(newPage) =>
-              updateFilter('page', String(newPage))
-            }
+            onChange={(newPage) => updateFilter('page', String(newPage))}
           />
         </Center>
       )}
     </Container>
-  );
-}
-
-function ComicCard({
-  comic,
-}: {
-  comic: ComicListItemDto;
-}) {
-  return (
-    <Card
-      component={Link}
-      to={`/comics/${comic.id}`}
-      shadow="sm"
-      padding="md"
-      radius="md"
-      withBorder
-      style={{ textDecoration: 'none', color: 'inherit' }}
-    >
-      {comic.coverImageUrl && (
-        <Card.Section>
-          <Image
-            src={comic.coverImageUrl}
-            h={200}
-            fit="cover"
-            alt={comic.title}
-          />
-        </Card.Section>
-      )}
-      <Group justify="space-between" mb="xs" mt={comic.coverImageUrl ? 'sm' : undefined}>
-        <Badge variant="light" color="gray" size="sm">
-          #{comic.issueNumber ?? '—'}
-        </Badge>
-        {comic.read && (
-          <Badge color="green" size="sm">
-            Read
-          </Badge>
-        )}
-      </Group>
-      <Text fw={600} lineClamp={2} size="sm">
-        {comic.title}
-      </Text>
-      {comic.series && (
-        <Text size="xs" c="violet" mt={4}>
-          {comic.series.name}
-        </Text>
-      )}
-      <Group mt="xs" gap="xs" wrap="wrap">
-        {comic.publisher && (
-          <Text size="xs" c="dimmed">
-            {comic.publisher.name}
-          </Text>
-        )}
-        {comic.year && (
-          <Text size="xs" c="dimmed">
-            {comic.year}
-          </Text>
-        )}
-        <Text size="xs" c="dimmed">
-          {formatPrice(comic.coverPriceCents, comic.coverPriceCurrency) ?? '—'}
-        </Text>
-      </Group>
-    </Card>
   );
 }

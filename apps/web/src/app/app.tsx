@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { Layout } from './layout';
 import { HomePage } from './pages/home';
-import { ComicsListPage } from './pages/comics-list';
+import { ComicsListPage } from './pages/comic-list/comics-list';
 import { ComicDetailPage } from './pages/comic-detail';
 import { ImportPage } from './pages/import';
 import { MetronAddPage } from './pages/metron-add';
@@ -21,4 +21,3 @@ export function App() {
 }
 
 export default App;
-
