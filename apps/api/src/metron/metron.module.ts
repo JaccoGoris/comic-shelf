@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { MetronController } from './metron.controller';
-import { MetronService } from './metron.service';
+import { Module } from '@nestjs/common'
+import { HttpModule } from '@nestjs/axios'
+import { MetronController } from './metron.controller'
+import { MetronService } from './metron.service'
+import qs from 'qs'
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { MetronService } from './metron.service';
         username: process.env['METRON_USERNAME'] || '',
         password: process.env['METRON_PASSWORD'] || '',
       },
+      paramsSerializer: (params) => qs.stringify(params, { encode: true }),
       timeout: 15000,
     }),
   ],

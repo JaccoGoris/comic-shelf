@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
 const CREATOR_ROLES = [
   'WRITER',
@@ -10,11 +10,11 @@ const CREATOR_ROLES = [
   'LETTERER',
   'EDITOR',
   'CREATED_BY',
-] as const;
+] as const
 
-const GENRE_TYPES = ['GENRE', 'SUBGENRE'] as const;
+const GENRE_TYPES = ['GENRE', 'SUBGENRE'] as const
 
-const COLLECTION_TYPES = ['COLLECTION', 'WISHLIST'] as const;
+const COLLECTION_TYPES = ['COLLECTION', 'WISHLIST'] as const
 
 export const comicFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -80,6 +80,6 @@ export const comicFormSchema = z.object({
       type: z.enum(GENRE_TYPES),
     }),
   ),
-});
+})
 
-export type ComicFormValues = z.infer<typeof comicFormSchema>;
+export type ComicFormValues = z.infer<typeof comicFormSchema>

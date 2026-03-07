@@ -1,8 +1,8 @@
-import { ComicListItemDto } from '@comic-shelf/shared-types';
-import { Card, Image, Group, Badge, Text } from '@mantine/core';
-import placeholderImg from '../../../assets/comic-card-placeholder.webp';
-import { formatPrice } from '../../../utils/format';
-import { Link } from 'react-router-dom';
+import { ComicListItemDto } from '@comic-shelf/shared-types'
+import { Card, Image, Group, Badge, Text } from '@mantine/core'
+import placeholderImg from '../../../assets/comic-card-placeholder.webp'
+import { formatPrice } from '../../../utils/format'
+import { Link } from 'react-router-dom'
 
 export function ComicCard({ comic }: { comic: ComicListItemDto }) {
   return (
@@ -90,6 +90,23 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
           </Text>
         </Group>
       </div>
+      {(!comic.volume || !comic.issueNumber) && (
+        <Group
+          justify="center"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            padding: 'var(--mantine-spacing-sm)',
+          }}
+        >
+          <Badge color="orange" size="xs" mb="xs">
+            More info needed
+          </Badge>
+        </Group>
+      )}
     </Card>
-  );
+  )
 }

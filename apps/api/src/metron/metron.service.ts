@@ -4,90 +4,90 @@ import {
   HttpException,
   HttpStatus,
   ConflictException,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { PrismaService } from '@comic-shelf/db';
-import { CreatorRole } from '@prisma/client';
-import { UpsertService } from '../shared/upsert.service';
-import { firstValueFrom, Observable } from 'rxjs';
-import type { AxiosResponse } from 'axios';
+} from '@nestjs/common'
+import { HttpService } from '@nestjs/axios'
+import { PrismaService } from '@comic-shelf/db'
+import { CreatorRole } from '@prisma/client'
+import { UpsertService } from '../shared/upsert.service'
+import { firstValueFrom, Observable } from 'rxjs'
+import type { AxiosResponse } from 'axios'
 import type {
   MetronSearchResultDto,
   MetronIssueDetailDto,
   MetronSyncStatusDto,
   MetronSingleSyncResultDto,
-} from '@comic-shelf/shared-types';
+} from '@comic-shelf/shared-types'
 
 // ─── Metron API response interfaces ─────────────────────
 
 interface MetronPaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }
 
 interface MetronIssueListItem {
-  id: number;
+  id: number
   series: {
-    name: string;
-    volume: number;
-    year_began: number;
-  };
-  number: string;
-  issue: string;
-  cover_date: string;
-  store_date: string | null;
-  image: string | null;
-  cover_hash: string;
-  modified: string;
+    name: string
+    volume: number
+    year_began: number
+  }
+  number: string
+  issue: string
+  cover_date: string
+  store_date: string | null
+  image: string | null
+  cover_hash: string
+  modified: string
 }
 
 interface MetronIssueDetail {
-  id: number;
-  publisher: { id: number; name: string };
-  imprint: { id: number; name: string } | null;
+  id: number
+  publisher: { id: number; name: string }
+  imprint: { id: number; name: string } | null
   series: {
-    id: number;
-    name: string;
-    sort_name: string;
-    volume: number;
-    year_began: number;
-    series_type: { id: number; name: string };
-    genres: { id: number; name: string }[];
-  };
-  number: string;
-  alt_number: string;
-  title: string;
-  name: string[];
-  cover_date: string;
-  store_date: string | null;
-  foc_date: string | null;
-  price: string | null;
-  price_currency: string | null;
-  rating: { id: number; name: string } | null;
-  sku: string;
-  isbn: string;
-  upc: string;
-  page: number | null;
-  desc: string;
-  image: string | null;
-  cover_hash: string;
-  arcs: { id: number; name: string; modified: string }[];
+    id: number
+    name: string
+    sort_name: string
+    volume: number
+    year_began: number
+    series_type: { id: number; name: string }
+    genres: { id: number; name: string }[]
+  }
+  number: string
+  alt_number: string
+  title: string
+  name: string[]
+  cover_date: string
+  store_date: string | null
+  foc_date: string | null
+  price: string | null
+  price_currency: string | null
+  rating: { id: number; name: string } | null
+  sku: string
+  isbn: string
+  upc: string
+  page: number | null
+  desc: string
+  image: string | null
+  cover_hash: string
+  arcs: { id: number; name: string; modified: string }[]
   credits: {
-    id: number;
-    creator: string;
-    role: { id: number; name: string }[];
-  }[];
-  characters: { id: number; name: string; modified: string }[];
-  teams: { id: number; name: string; modified: string }[];
-  universes: { id: number; name: string; modified: string }[];
-  reprints: unknown[];
-  variants: unknown[];
-  cv_id: number | null;
-  gcd_id: number | null;
-  resource_url: string;
-  modified: string;
+    id: number
+    creator: string
+    role: { id: number; name: string }[]
+  }[]
+  characters: { id: number; name: string; modified: string }[]
+  teams: { id: number; name: string; modified: string }[]
+  universes: { id: number; name: string; modified: string }[]
+  reprints: unknown[]
+  variants: unknown[]
+  cv_id: number | null
+  gcd_id: number | null
+  resource_url: string
+  modified: string
 }
 
 // ─── Metron role name → CreatorRole mapping ──────────────
@@ -103,11 +103,11 @@ const ROLE_MAP: Record<string, CreatorRole> = {
   'cover artist': 'COVER_ARTIST',
   letterer: 'LETTERER',
   editor: 'EDITOR',
-};
+}
 
 @Injectable()
 export class MetronService {
-  private readonly logger = new Logger(MetronService.name);
+  private readonly logger = new Logger(MetronService.name)
   private readonly syncState = {
     running: false,
     cancelled: false,
@@ -119,7 +119,7 @@ export class MetronService {
     failed: 0,
     startedAt: null as Date | null,
     completedAt: null as Date | null,
-  };
+  }
 
   constructor(
     private readonly httpService: HttpService,
@@ -136,24 +136,32 @@ export class MetronService {
   ): Promise<AxiosResponse<T>> {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        return await firstValueFrom(request());
+        return await firstValueFrom(request())
       } catch (error) {
         const axiosError = error as {
-          response?: { status: number; headers: Record<string, string>; data: unknown };
-        };
-        if (axiosError.response?.status === 429 && attempt < maxRetries) {
-          const waitMs = parseRetryAfter(axiosError.response.headers['retry-after']);
-          this.logger.warn(
-            `[${context}] 429 — Retry-After: ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})`,
-          );
-          await new Promise((r) => setTimeout(r, waitMs));
-          continue;
+          response?: {
+            status: number
+            headers: Record<string, string>
+            data: unknown
+          }
         }
-        throw error;
+        if (axiosError.response?.status === 429 && attempt < maxRetries) {
+          const waitMs = parseRetryAfter(
+            axiosError.response.headers['retry-after'],
+          )
+          this.logger.warn(
+            `[${context}] 429 — Retry-After: ${waitMs}ms (attempt ${
+              attempt + 1
+            }/${maxRetries})`,
+          )
+          await new Promise((r) => setTimeout(r, waitMs))
+          continue
+        }
+        throw error
       }
     }
     // Unreachable — loop always returns or throws — but satisfies TypeScript
-    throw new Error('callApi exhausted retries');
+    throw new Error('callApi exhausted retries')
   }
 
   // ─── API calls ─────────────────────────────────────────
@@ -161,39 +169,91 @@ export class MetronService {
   async searchByUpc(upc: string): Promise<MetronSearchResultDto[]> {
     try {
       const response = await this.callApi(
-        () => this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-          '/api/issue/',
-          { params: { upc } },
-        ),
+        () =>
+          this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+            '/api/issue/',
+            { params: { upc } },
+          ),
         'searchByUpc',
-      );
+      )
 
-      return response.data.results.map((item) => ({
-        id: item.id,
-        series: {
-          name: item.series.name,
-          volume: item.series.volume,
-          yearBegan: item.series.year_began,
-        },
-        number: item.number,
-        issue: item.issue,
-        coverDate: item.cover_date,
-        storeDate: item.store_date,
-        image: item.image,
-      }));
+      return this.mapIssueResults(response.data.results)
     } catch (error) {
-      this.handleApiError(error, 'searchByUpc');
+      this.handleApiError(error, 'searchByUpc')
     }
+  }
+
+  async searchBySeriesAndIssue(
+    seriesName: string,
+    issueNumber: string,
+    publisherName?: string,
+  ): Promise<MetronSearchResultDto[]> {
+    try {
+      const params: Record<string, string> = {
+        series_name: seriesName,
+        number: issueNumber,
+      }
+      if (publisherName) {
+        params.publisher_name = publisherName
+      }
+
+      const response = await this.callApi(
+        () =>
+          this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+            '/api/issue/',
+            { params },
+          ),
+        'searchBySeriesAndIssue',
+      )
+
+      return this.mapIssueResults(response.data.results)
+    } catch (error) {
+      this.handleApiError(error, 'searchBySeriesAndIssue')
+    }
+  }
+
+  private mapIssueResults(
+    results: MetronIssueListItem[],
+  ): MetronSearchResultDto[] {
+    return results.map((item) => ({
+      id: item.id,
+      series: {
+        name: item.series.name,
+        volume: item.series.volume,
+        yearBegan: item.series.year_began,
+      },
+      number: item.number,
+      issue: item.issue,
+      coverDate: item.cover_date,
+      storeDate: item.store_date,
+      image: item.image,
+    }))
+  }
+
+  private autoMatchIssue(
+    results: MetronIssueListItem[],
+    issueNumber?: string | null,
+  ): MetronIssueListItem | null {
+    if (results.length === 0) return null
+    if (results.length === 1) return results[0]
+
+    if (issueNumber) {
+      const byNumber = results.filter((r) => r.number === issueNumber)
+      if (byNumber.length >= 1) return byNumber[0]
+    }
+
+    return results[0]
   }
 
   async getIssueDetail(metronId: number): Promise<MetronIssueDetailDto> {
     try {
       const response = await this.callApi(
-        () => this.httpService.get<MetronIssueDetail>(`/api/issue/${metronId}/`),
+        () =>
+          this.httpService.get<MetronIssueDetail>(`/api/issue/${metronId}/`),
         'getIssueDetail',
-      );
+      )
 
-      const issue = response.data;
+      const issue = response.data
       return {
         id: issue.id,
         publisher: issue.publisher,
@@ -231,9 +291,9 @@ export class MetronService {
         })),
         teams: issue.teams.map((t) => ({ id: t.id, name: t.name })),
         resourceUrl: issue.resource_url,
-      };
+      }
     } catch (error) {
-      this.handleApiError(error, 'getIssueDetail');
+      this.handleApiError(error, 'getIssueDetail')
     }
   }
 
@@ -241,52 +301,53 @@ export class MetronService {
     // Check for duplicate
     const existing = await this.prisma.comic.findUnique({
       where: { metronId },
-    });
+    })
     if (existing) {
       throw new ConflictException(
         `Comic with Metron ID ${metronId} already exists (comic #${existing.id}).`,
-      );
+      )
     }
 
     // Fetch full detail from Metron
-    const detail = await this.getIssueDetail(metronId);
+    const detail = await this.getIssueDetail(metronId)
 
     // Auto-generate a unique negative itemId for Metron-sourced comics
-    const itemId = BigInt(-Date.now()) - BigInt(Math.floor(Math.random() * 10000));
+    const itemId =
+      BigInt(-Date.now()) - BigInt(Math.floor(Math.random() * 10000))
 
     // ── Publisher ──
     const publisherRecord = await this.upsertService.upsertPublisher(
       detail.publisher.name,
-    );
+    )
 
     // ── Series ──
     const seriesRecord = await this.upsertService.upsertSeries(
       detail.series.name,
       publisherRecord.id,
-    );
+    )
 
     // ── Parse price ──
-    let coverPriceCents: number | null = null;
+    let coverPriceCents: number | null = null
     if (detail.price) {
-      const parsed = parseFloat(detail.price);
+      const parsed = parseFloat(detail.price)
       if (!isNaN(parsed)) {
-        coverPriceCents = Math.round(parsed * 100);
+        coverPriceCents = Math.round(parsed * 100)
       }
     }
 
     // ── Extract year from cover_date ──
-    let year: number | null = null;
+    let year: number | null = null
     if (detail.coverDate) {
-      const parsed = new Date(detail.coverDate);
+      const parsed = new Date(detail.coverDate)
       if (!isNaN(parsed.getTime())) {
-        year = parsed.getFullYear();
+        year = parsed.getFullYear()
       }
     }
 
     // ── Construct title ──
     const title = detail.title
       ? detail.title
-      : `${detail.series.name} #${detail.number}`;
+      : `${detail.series.name} #${detail.number}`
 
     // ── Create comic ──
     const comic = await this.prisma.comic.create({
@@ -308,24 +369,24 @@ export class MetronService {
         publisherId: publisherRecord.id,
         seriesId: seriesRecord.id,
       },
-    });
+    })
 
     // ── Story Arcs ──
     for (const arc of detail.arcs) {
-      const arcRecord = await this.upsertService.upsertStoryArc(arc.name);
+      const arcRecord = await this.upsertService.upsertStoryArc(arc.name)
       await this.prisma.comicStoryArc.create({
         data: { comicId: comic.id, storyArcId: arcRecord.id },
-      });
+      })
     }
 
     // ── Credits / Creators ──
     for (const credit of detail.credits) {
       const creatorRecord = await this.upsertService.upsertCreator(
         credit.creator,
-      );
+      )
       for (const role of credit.role) {
-        const mappedRole = mapMetronRole(role.name);
-        if (!mappedRole) continue;
+        const mappedRole = mapMetronRole(role.name)
+        if (!mappedRole) continue
 
         await this.prisma.comicCreator.upsert({
           where: {
@@ -341,13 +402,13 @@ export class MetronService {
             role: mappedRole,
           },
           update: {},
-        });
+        })
       }
     }
 
     // ── Characters ──
     for (const char of detail.characters) {
-      const character = await this.upsertService.upsertCharacter(char.name);
+      const character = await this.upsertService.upsertCharacter(char.name)
       await this.prisma.comicCharacter.upsert({
         where: {
           comicId_characterId: {
@@ -357,12 +418,12 @@ export class MetronService {
         },
         create: { comicId: comic.id, characterId: character.id },
         update: {},
-      });
+      })
     }
 
     // ── Genres (from series) ──
     for (const genre of detail.series.genres) {
-      const genreRecord = await this.upsertService.upsertGenre(genre.name);
+      const genreRecord = await this.upsertService.upsertGenre(genre.name)
       await this.prisma.comicGenre.upsert({
         where: {
           comicId_genreId_type: {
@@ -377,14 +438,14 @@ export class MetronService {
           type: 'GENRE',
         },
         update: {},
-      });
+      })
     }
 
     this.logger.log(
       `Imported Metron issue #${metronId} as comic #${comic.id}: "${title}"`,
-    );
+    )
 
-    return { comicId: comic.id };
+    return { comicId: comic.id }
   }
 
   // ─── Library sync ──────────────────────────────────────
@@ -400,25 +461,34 @@ export class MetronService {
       failed: this.syncState.failed,
       startedAt: this.syncState.startedAt?.toISOString() ?? null,
       completedAt: this.syncState.completedAt?.toISOString() ?? null,
-    };
+    }
   }
 
   stopSync(): MetronSyncStatusDto {
     if (!this.syncState.running) {
-      return this.getSyncStatus();
+      return this.getSyncStatus()
     }
-    this.syncState.cancelRequested = true;
-    return this.getSyncStatus();
+    this.syncState.cancelRequested = true
+    return this.getSyncStatus()
   }
 
   async startSync(): Promise<MetronSyncStatusDto> {
     if (this.syncState.running) {
-      throw new ConflictException('A sync is already in progress.');
+      throw new ConflictException('A sync is already in progress.')
     }
     const comics = await this.prisma.comic.findMany({
-      where: { barcode: { not: null }, metronId: null },
-      select: { id: true, barcode: true },
-    });
+      where: {
+        metronId: null,
+        OR: [{ barcode: { not: null } }, { issueNumber: { not: null } }],
+      },
+      select: {
+        id: true,
+        barcode: true,
+        issueNumber: true,
+        series: { select: { name: true } },
+        publisher: { select: { name: true } },
+      },
+    })
     Object.assign(this.syncState, {
       running: true,
       cancelled: false,
@@ -430,49 +500,99 @@ export class MetronService {
       failed: 0,
       startedAt: new Date(),
       completedAt: null,
-    });
+    })
     this.runSync(comics).catch((err) => {
-      this.logger.error('Sync crashed unexpectedly', err);
-      this.syncState.running = false;
-      this.syncState.completedAt = new Date();
-    });
-    return this.getSyncStatus();
+      this.logger.error('Sync crashed unexpectedly', err)
+      this.syncState.running = false
+      this.syncState.completedAt = new Date()
+    })
+    return this.getSyncStatus()
   }
 
   private async runSync(
-    comics: { id: number; barcode: string | null }[],
+    comics: {
+      id: number
+      barcode: string | null
+      issueNumber: string | null
+      series: { name: string } | null
+      publisher: { name: string } | null
+    }[],
   ): Promise<void> {
     for (const comic of comics) {
       if (this.syncState.cancelRequested) {
-        this.syncState.cancelled = true;
-        break;
-      }
-      if (!comic.barcode) {
-        this.syncState.skipped++;
-        this.syncState.processed++;
-        continue;
+        this.syncState.cancelled = true
+        break
       }
       try {
-        const res = await this.callApi(
-          () => this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-            '/api/issue/',
-            { params: { upc: comic.barcode } },
-          ),
-          `runSync:comic#${comic.id}`,
-          5,
-        );
-        if (res.data.count > 0 && res.data.results.length > 0) {
-          const item = res.data.results[0];
+        // Try UPC lookup first
+        let results: MetronIssueListItem[] = []
+        if (comic.barcode) {
+          const res = await this.callApi(
+            () =>
+              this.httpService.get<
+                MetronPaginatedResponse<MetronIssueListItem>
+              >('/api/issue/', { params: { upc: comic.barcode } }),
+            `runSync:comic#${comic.id}:upc`,
+            5,
+          )
+          results = res.data.results
+        }
+
+        // Discard UPC results that don't match the stored issue number
+        if (results.length > 0 && comic.issueNumber) {
+          const numberMatch = results.some(
+            (r) => r.number === comic.issueNumber,
+          )
+          if (!numberMatch) {
+            this.logger.log(
+              `UPC results for comic #${comic.id} don't match stored issue number "${comic.issueNumber}", discarding and trying series fallback`,
+            )
+            results = []
+          }
+        }
+
+        // Fallback to series name + issue number search
+        if (results.length === 0 && comic.series?.name && comic.issueNumber) {
+          this.logger.log(
+            `UPC lookup failed for comic #${comic.id}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`,
+          )
+          const params: Record<string, string> = {
+            series_name: comic.series.name,
+            number: comic.issueNumber,
+          }
+          if (comic.publisher?.name) {
+            params.publisher_name = comic.publisher.name
+          }
+          const res = await this.callApi(
+            () =>
+              this.httpService.get<
+                MetronPaginatedResponse<MetronIssueListItem>
+              >('/api/issue/', { params }),
+            `runSync:comic#${comic.id}:series`,
+            5,
+          )
+          results = res.data.results
+        }
+
+        const item = this.autoMatchIssue(results, comic.issueNumber)
+        if (item) {
           const existing = await this.prisma.comic.findUnique({
             where: { id: comic.id },
             select: { coverDate: true, volume: true, year: true },
-          });
+          })
+
+          // Fetch full detail to get the correct UPC from Metron
+          const detail = await this.getIssueDetail(item.id)
+
           await this.prisma.comic.update({
             where: { id: comic.id },
             data: {
               metronId: item.id,
+              barcode: detail.upc ?? undefined,
               coverImageUrl: item.image ?? undefined,
-              storeDate: item.store_date ? new Date(item.store_date) : undefined,
+              storeDate: item.store_date
+                ? new Date(item.store_date)
+                : undefined,
               coverDate:
                 !existing?.coverDate && item.cover_date
                   ? item.cover_date
@@ -486,22 +606,22 @@ export class MetronService {
                   ? item.series.year_began
                   : undefined,
             },
-          });
-          this.syncState.found++;
+          })
+          this.syncState.found++
         } else {
-          this.syncState.skipped++;
+          this.syncState.skipped++
         }
       } catch (err) {
-        this.logger.warn(`Sync failed for comic ${comic.id}: ${err}`);
-        this.syncState.failed++;
+        this.logger.warn(`Sync failed for comic ${comic.id}: ${err}`)
+        this.syncState.failed++
       }
-      this.syncState.processed++;
+      this.syncState.processed++
     }
-    this.syncState.running = false;
-    this.syncState.completedAt = new Date();
+    this.syncState.running = false
+    this.syncState.completedAt = new Date()
     this.logger.log(
       `Sync complete: ${this.syncState.found} found, ${this.syncState.skipped} skipped, ${this.syncState.failed} failed`,
-    );
+    )
   }
 
   // ─── Single-issue sync ────────────────────────────────
@@ -513,6 +633,7 @@ export class MetronService {
         id: true,
         barcode: true,
         metronId: true,
+        issueNumber: true,
         coverDate: true,
         volume: true,
         year: true,
@@ -522,138 +643,206 @@ export class MetronService {
         coverPriceCurrency: true,
         coverImageUrl: true,
         storeDate: true,
+        series: { select: { name: true } },
+        publisher: { select: { name: true } },
       },
-    });
+    })
     if (!comic) {
-      throw new HttpException('Comic not found.', HttpStatus.NOT_FOUND);
+      throw new HttpException('Comic not found.', HttpStatus.NOT_FOUND)
     }
     if (comic.metronId) {
-      return { status: 'skipped', reason: 'Already synced with Metron' };
+      return { status: 'skipped', reason: 'Already synced with Metron' }
     }
-    if (!comic.barcode) {
-      return { status: 'skipped', reason: 'No barcode available for Metron lookup' };
+    if (!comic.barcode && !comic.issueNumber) {
+      return {
+        status: 'skipped',
+        reason: 'No barcode or issue number available for Metron lookup',
+      }
     }
 
     try {
-      const res = await this.callApi(
-        () => this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-          '/api/issue/',
-          { params: { upc: comic.barcode } },
-        ),
-        `syncSingle:comic#${comicId}`,
-        5,
-      );
-
-      if (res.data.count === 0 || res.data.results.length === 0) {
-        return { status: 'skipped', reason: `No matching issue found on Metron for UPC ${comic.barcode}` };
+      // Try UPC lookup first
+      let results: MetronIssueListItem[] = []
+      if (comic.barcode) {
+        const res = await this.callApi(
+          () =>
+            this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+              '/api/issue/',
+              { params: { upc: comic.barcode } },
+            ),
+          `syncSingle:comic#${comicId}:upc`,
+          5,
+        )
+        results = res.data.results
       }
 
-      const metronId = res.data.results[0].id;
-      const detail = await this.getIssueDetail(metronId);
-      const updatedFields: string[] = [];
+      // Discard UPC results that don't match the stored issue number
+      if (results.length > 0 && comic.issueNumber) {
+        const numberMatch = results.some((r) => r.number === comic.issueNumber)
+        if (!numberMatch) {
+          this.logger.log(
+            `UPC results for comic #${comicId} don't match stored issue number "${comic.issueNumber}", discarding and trying series fallback`,
+          )
+          results = []
+        }
+      }
+
+      // Fallback to series name + issue number search
+      if (results.length === 0 && comic.series?.name && comic.issueNumber) {
+        this.logger.log(
+          `UPC lookup failed for comic #${comicId}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`,
+        )
+        const params: Record<string, string> = {
+          series_name: comic.series.name,
+          number: comic.issueNumber,
+        }
+        const res = await this.callApi(
+          () =>
+            this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
+              '/api/issue/',
+              { params },
+            ),
+          `syncSingle:comic#${comicId}:series`,
+          5,
+        )
+        results = res.data.results
+      }
+
+      const matched = this.autoMatchIssue(results, comic.issueNumber)
+      if (!matched) {
+        return {
+          status: 'skipped',
+          reason: `No matching issue found on Metron for comic #${comicId}`,
+        }
+      }
+
+      const metronId = matched.id
+      const detail = await this.getIssueDetail(metronId)
+      const updatedFields: string[] = []
 
       // Build update data, only filling in missing fields
-      const updateData: Record<string, unknown> = { metronId: detail.id };
-      updatedFields.push('metronId');
+      const updateData: Record<string, unknown> = { metronId: detail.id }
+      updatedFields.push('metronId')
+
+      if (detail.upc && detail.upc !== comic.barcode) {
+        updateData.barcode = detail.upc
+        updatedFields.push('barcode')
+      }
 
       if (detail.image) {
-        updateData.coverImageUrl = detail.image;
-        updatedFields.push('cover image');
+        updateData.coverImageUrl = detail.image
+        updatedFields.push('cover image')
       }
       if (detail.storeDate) {
-        updateData.storeDate = new Date(detail.storeDate);
-        updatedFields.push('store date');
+        updateData.storeDate = new Date(detail.storeDate)
+        updatedFields.push('store date')
       }
       if (!comic.coverDate && detail.coverDate) {
-        updateData.coverDate = detail.coverDate;
-        updatedFields.push('cover date');
+        updateData.coverDate = detail.coverDate
+        updatedFields.push('cover date')
       }
       if (!comic.volume && detail.series.volume) {
-        updateData.volume = String(detail.series.volume);
-        updatedFields.push('volume');
+        updateData.volume = String(detail.series.volume)
+        updatedFields.push('volume')
       }
       if (!comic.year && detail.series.yearBegan) {
-        updateData.year = detail.series.yearBegan;
-        updatedFields.push('year');
+        updateData.year = detail.series.yearBegan
+        updatedFields.push('year')
       }
       if (!comic.synopsis && detail.desc) {
-        updateData.synopsis = detail.desc;
-        updatedFields.push('synopsis');
+        updateData.synopsis = detail.desc
+        updatedFields.push('synopsis')
       }
       if (!comic.numberOfPages && detail.page) {
-        updateData.numberOfPages = detail.page;
-        updatedFields.push('pages');
+        updateData.numberOfPages = detail.page
+        updatedFields.push('pages')
       }
       if (!comic.coverPriceCents && detail.price) {
-        const parsed = parseFloat(detail.price);
+        const parsed = parseFloat(detail.price)
         if (!isNaN(parsed)) {
-          updateData.coverPriceCents = Math.round(parsed * 100);
-          updateData.coverPriceCurrency = detail.priceCurrency ?? null;
-          updatedFields.push('cover price');
+          updateData.coverPriceCents = Math.round(parsed * 100)
+          updateData.coverPriceCurrency = detail.priceCurrency ?? null
+          updatedFields.push('cover price')
         }
       }
 
       await this.prisma.comic.update({
         where: { id: comicId },
         data: updateData,
-      });
+      })
 
       // Upsert story arcs
       for (const arc of detail.arcs) {
-        const arcRecord = await this.upsertService.upsertStoryArc(arc.name);
+        const arcRecord = await this.upsertService.upsertStoryArc(arc.name)
         await this.prisma.comicStoryArc.upsert({
           where: { comicId_storyArcId: { comicId, storyArcId: arcRecord.id } },
           create: { comicId, storyArcId: arcRecord.id },
           update: {},
-        });
+        })
       }
-      if (detail.arcs.length > 0) updatedFields.push('story arcs');
+      if (detail.arcs.length > 0) updatedFields.push('story arcs')
 
       // Upsert creators
       for (const credit of detail.credits) {
-        const creatorRecord = await this.upsertService.upsertCreator(credit.creator);
+        const creatorRecord = await this.upsertService.upsertCreator(
+          credit.creator,
+        )
         for (const role of credit.role) {
-          const mappedRole = mapMetronRole(role.name);
-          if (!mappedRole) continue;
+          const mappedRole = mapMetronRole(role.name)
+          if (!mappedRole) continue
           await this.prisma.comicCreator.upsert({
             where: {
-              comicId_creatorId_role: { comicId, creatorId: creatorRecord.id, role: mappedRole },
+              comicId_creatorId_role: {
+                comicId,
+                creatorId: creatorRecord.id,
+                role: mappedRole,
+              },
             },
             create: { comicId, creatorId: creatorRecord.id, role: mappedRole },
             update: {},
-          });
+          })
         }
       }
-      if (detail.credits.length > 0) updatedFields.push('creators');
+      if (detail.credits.length > 0) updatedFields.push('creators')
 
       // Upsert characters
       for (const char of detail.characters) {
-        const character = await this.upsertService.upsertCharacter(char.name);
+        const character = await this.upsertService.upsertCharacter(char.name)
         await this.prisma.comicCharacter.upsert({
-          where: { comicId_characterId: { comicId, characterId: character.id } },
+          where: {
+            comicId_characterId: { comicId, characterId: character.id },
+          },
           create: { comicId, characterId: character.id },
           update: {},
-        });
+        })
       }
-      if (detail.characters.length > 0) updatedFields.push('characters');
+      if (detail.characters.length > 0) updatedFields.push('characters')
 
       // Upsert genres
       for (const genre of detail.series.genres) {
-        const genreRecord = await this.upsertService.upsertGenre(genre.name);
+        const genreRecord = await this.upsertService.upsertGenre(genre.name)
         await this.prisma.comicGenre.upsert({
-          where: { comicId_genreId_type: { comicId, genreId: genreRecord.id, type: 'GENRE' } },
+          where: {
+            comicId_genreId_type: {
+              comicId,
+              genreId: genreRecord.id,
+              type: 'GENRE',
+            },
+          },
           create: { comicId, genreId: genreRecord.id, type: 'GENRE' },
           update: {},
-        });
+        })
       }
-      if (detail.series.genres.length > 0) updatedFields.push('genres');
+      if (detail.series.genres.length > 0) updatedFields.push('genres')
 
-      this.logger.log(`Single sync for comic #${comicId}: matched Metron #${metronId}`);
-      return { status: 'synced', updatedFields };
+      this.logger.log(
+        `Single sync for comic #${comicId}: matched Metron #${metronId}`,
+      )
+      return { status: 'synced', updatedFields }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Single sync failed for comic #${comicId}: ${message}`);
-      return { status: 'failed', reason: message };
+      const message = err instanceof Error ? err.message : String(err)
+      this.logger.warn(`Single sync failed for comic #${comicId}: ${message}`)
+      return { status: 'failed', reason: message }
     }
   }
 
@@ -661,64 +850,70 @@ export class MetronService {
 
   private handleApiError(error: unknown, method: string): never {
     const axiosError = error as {
-      response?: { status: number; headers: Record<string, string>; data: unknown };
-      message?: string;
-    };
+      response?: {
+        status: number
+        headers: Record<string, string>
+        data: unknown
+      }
+      message?: string
+    }
 
     if (axiosError.response) {
-      const status = axiosError.response.status;
+      const status = axiosError.response.status
       this.logger.error(
-        `Metron API error in ${method}: ${status} — ${JSON.stringify(axiosError.response.data)}`,
-      );
+        `Metron API error in ${method}: ${status} — ${JSON.stringify(
+          axiosError.response.data,
+        )}`,
+      )
       if (status === 401) {
         throw new HttpException(
           'Metron API authentication failed. Check METRON_USERNAME and METRON_PASSWORD.',
           HttpStatus.UNAUTHORIZED,
-        );
+        )
       }
       if (status === 404) {
         throw new HttpException(
           'Issue not found on Metron.',
           HttpStatus.NOT_FOUND,
-        );
+        )
       }
       if (status === 429) {
-        const retryAfter = axiosError.response.headers?.['retry-after'];
+        const retryAfter = axiosError.response.headers?.['retry-after']
         throw new HttpException(
           retryAfter
             ? `Metron API rate limit exceeded. Retry after ${retryAfter}s.`
             : 'Metron API rate limit exceeded. Please wait and try again.',
           HttpStatus.TOO_MANY_REQUESTS,
-        );
+        )
       }
       throw new HttpException(
         `Metron API returned ${status}`,
         HttpStatus.BAD_GATEWAY,
-      );
+      )
     }
 
     this.logger.error(
       `Metron API error in ${method}: ${axiosError.message ?? error}`,
-    );
+    )
     throw new HttpException(
       'Failed to reach Metron API.',
       HttpStatus.BAD_GATEWAY,
-    );
+    )
   }
 }
 
 // ─── Helpers ─────────────────────────────────────────────
 
 function mapMetronRole(roleName: string): CreatorRole | null {
-  const key = roleName.toLowerCase().trim();
-  return ROLE_MAP[key] ?? null;
+  const key = roleName.toLowerCase().trim()
+  return ROLE_MAP[key] ?? null
 }
 
 function parseRetryAfter(header: string | undefined): number {
-  if (!header) return 60_000;
-  const seconds = parseInt(header, 10);
-  if (!isNaN(seconds)) return seconds * 1000;
-  const date = Date.parse(header);
-  if (!isNaN(date)) return Math.max(0, date - Date.now());
-  return 60_000;
+  if (!header) return 60_000
+  const seconds = parseInt(header, 10)
+  if (!isNaN(seconds)) return seconds * 1000
+  const date = Date.parse(header)
+  if (!isNaN(date)) return Math.max(0, date - Date.now())
+  return 60_000
 }

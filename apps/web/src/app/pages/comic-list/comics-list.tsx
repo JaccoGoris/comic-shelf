@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   getComics,
   getPublishers,
@@ -8,14 +8,13 @@ import {
   stopMetronSync,
   getMetronSyncStatus,
   type ComicFilters,
-} from '../../../api/client';
+} from '../../../api/client'
 import type {
   ComicListItemDto,
-  PaginatedResponse,
   PublisherDto,
   SeriesDto,
   MetronSyncStatusDto,
-} from '@comic-shelf/shared-types';
+} from '@comic-shelf/shared-types'
 import {
   Container,
   Title,
@@ -25,7 +24,6 @@ import {
   Text,
   Badge,
   Group,
-  Pagination,
   Loader,
   Center,
   Stack,
@@ -35,192 +33,286 @@ import {
   Progress,
   Notification,
   Tooltip,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+} from '@mantine/core'
+import { useIntersection } from '@mantine/hooks'
+import { notifications } from '@mantine/notifications'
 import {
   IconSearch,
   IconPlus,
   IconRefresh,
   IconPlayerStop,
-} from '@tabler/icons-react';
-import { getErrorMessage } from '../../../utils/error';
-import {
-  GROUPED_FETCH_LIMIT,
-  PAGE_SIZE,
-  SYNC_POLL_INTERVAL_MS,
-} from '../../../utils/constants';
-import { ComicCard } from './comic-card';
+} from '@tabler/icons-react'
+import { getErrorMessage } from '../../../utils/error'
+import { PAGE_SIZE, SYNC_POLL_INTERVAL_MS } from '../../../utils/constants'
+import { ComicCard } from './comic-card'
 
 export function ComicsListPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [result, setResult] =
-    useState<PaginatedResponse<ComicListItemDto> | null>(null);
-  const [publishers, setPublishers] = useState<PublisherDto[]>([]);
-  const [series, setSeries] = useState<SeriesDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [comics, setComics] = useState<ComicListItemDto[]>([])
+  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [publishers, setPublishers] = useState<PublisherDto[]>([])
+  const [series, setSeries] = useState<SeriesDto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [searchInput, setSearchInput] = useState(
-    searchParams.get('search') ?? ''
-  );
-  const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(
-    null
-  );
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
+    searchParams.get('search') ?? '',
+  )
+  const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(null)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
 
-  const page = parseInt(searchParams.get('page') ?? '1', 10);
-  const search = searchParams.get('search') ?? '';
-  const publisherId = searchParams.get('publisherId') ?? '';
-  const seriesId = searchParams.get('seriesId') ?? '';
-  const read = searchParams.get('read') ?? '';
-  const groupBy = searchParams.get('groupBy') ?? 'series';
+  const pageRef = useRef(1)
 
-  const isGrouped = groupBy !== 'none';
+  const search = searchParams.get('search') ?? ''
+  const publisherId = searchParams.get('publisherId') ?? ''
+  const seriesId = searchParams.get('seriesId') ?? ''
+  const read = searchParams.get('read') ?? ''
+  const groupBy = searchParams.get('groupBy') ?? 'series'
+
+  const { ref: sentinelRef, entry } = useIntersection({ threshold: 0.1 })
+
+  const buildFilters = useCallback(
+    (page: number): ComicFilters => {
+      const filters: ComicFilters = { page, limit: PAGE_SIZE }
+      if (search) filters.search = search
+      if (publisherId) filters.publisherId = parseInt(publisherId, 10)
+      if (seriesId) filters.seriesId = parseInt(seriesId, 10)
+      if (read) filters.read = read === 'true'
+      return filters
+    },
+    [search, publisherId, seriesId, read],
+  )
 
   const fetchComics = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
+    pageRef.current = 1
     try {
-      const filters: ComicFilters = isGrouped
-        ? { page: 1, limit: GROUPED_FETCH_LIMIT }
-        : { page, limit: PAGE_SIZE };
-      if (search) filters.search = search;
-      if (publisherId) filters.publisherId = parseInt(publisherId, 10);
-      if (seriesId) filters.seriesId = parseInt(seriesId, 10);
-      if (read) filters.read = read === 'true';
-      const data = await getComics(filters);
-      setResult(data);
+      const filters = buildFilters(1)
+      const data = await getComics(filters)
+      setComics(data.data)
+      setTotal(data.total)
+      setHasMore(data.page < data.totalPages)
     } catch (err) {
       notifications.show({
         title: 'Error',
         message: getErrorMessage(
           err,
-          'Failed to load comics. Please try again.'
+          'Failed to load comics. Please try again.',
         ),
         color: 'red',
-      });
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [page, search, publisherId, seriesId, read, isGrouped]);
+  }, [buildFilters])
 
+  const fetchMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    const nextPage = pageRef.current + 1
+    try {
+      const filters = buildFilters(nextPage)
+      const data = await getComics(filters)
+      pageRef.current = nextPage
+      setComics((prev) => [...prev, ...data.data])
+      setHasMore(data.page < data.totalPages)
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: getErrorMessage(err, 'Failed to load more comics.'),
+        color: 'red',
+      })
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [buildFilters, loadingMore, hasMore])
+
+  // Initial fetch and refetch on filter changes
   useEffect(() => {
-    fetchComics();
-  }, [fetchComics]);
+    fetchComics()
+  }, [fetchComics])
 
+  // Infinite scroll trigger
+  useEffect(() => {
+    if (entry?.isIntersecting && hasMore && !loading && !loadingMore) {
+      fetchMore()
+    }
+  }, [entry?.isIntersecting, hasMore, loading, loadingMore, fetchMore])
+
+  // Load filter options
   useEffect(() => {
     getPublishers()
       .then(setPublishers)
       .catch((err) => {
-        console.error('Failed to get publishers', err);
-      });
+        console.error('Failed to get publishers', err)
+      })
     getSeries()
       .then(setSeries)
       .catch((err) => {
-        console.error('Failed to get series', err);
-      });
+        console.error('Failed to get series', err)
+      })
     getMetronSyncStatus()
       .then(setSyncStatus)
       .catch((err) => {
-        console.error('Failed to get Metron sync status', err);
-      });
-  }, []);
+        console.error('Failed to get Metron sync status', err)
+      })
+  }, [])
 
+  // Sync polling
   useEffect(() => {
-    if (!syncStatus?.running) return;
+    if (!syncStatus?.running) return
     const id = setInterval(async () => {
       try {
-        const status = await getMetronSyncStatus();
-        setSyncStatus(status);
+        const status = await getMetronSyncStatus()
+        setSyncStatus(status)
         if (!status.running) {
-          clearInterval(id);
-          fetchComics();
+          clearInterval(id)
+          fetchComics()
         }
       } catch {
-        clearInterval(id);
+        clearInterval(id)
       }
-    }, SYNC_POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [syncStatus?.running, fetchComics]);
+    }, SYNC_POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [syncStatus?.running, fetchComics])
 
   const handleStartSync = async () => {
-    setSyncLoading(true);
-    setSyncError(null);
+    setSyncLoading(true)
+    setSyncError(null)
     try {
-      setSyncStatus(await startMetronSync());
+      setSyncStatus(await startMetronSync())
     } catch (err: unknown) {
-      setSyncError(getErrorMessage(err, 'Failed to start sync'));
+      setSyncError(getErrorMessage(err, 'Failed to start sync'))
     } finally {
-      setSyncLoading(false);
+      setSyncLoading(false)
     }
-  };
+  }
 
   const handleStopSync = async () => {
     try {
-      setSyncStatus(await stopMetronSync());
+      setSyncStatus(await stopMetronSync())
     } catch (err: unknown) {
-      setSyncError(getErrorMessage(err, 'Failed to stop sync'));
+      setSyncError(getErrorMessage(err, 'Failed to stop sync'))
     }
-  };
+  }
 
   const syncProgress =
     syncStatus && syncStatus.total > 0
       ? Math.round((syncStatus.processed / syncStatus.total) * 100)
-      : 0;
+      : 0
 
   const updateFilter = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams)
     if (value) {
-      params.set(key, value);
+      params.set(key, value)
     } else {
-      params.delete(key);
+      params.delete(key)
     }
-    if (key !== 'page') {
-      params.set('page', '1');
-    }
-    setSearchParams(params);
-  };
+    params.delete('page')
+    setSearchParams(params)
+  }
 
   const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateFilter('search', searchInput);
-  };
+    e.preventDefault()
+    updateFilter('search', searchInput)
+  }
 
   const publisherData = publishers.map((p) => ({
     value: String(p.id),
     label: p.name,
-  }));
+  }))
 
   const seriesData = series.map((s) => ({
     value: String(s.id),
     label: s.name,
-  }));
+  }))
 
   const readData = [
     { value: 'true', label: 'Read' },
     { value: 'false', label: 'Unread' },
-  ];
+  ]
 
   const groupByData = [
     { value: 'series', label: 'Series' },
     { value: 'publisher', label: 'Publisher' },
     { value: 'none', label: 'None' },
-  ];
+  ]
 
-  const groupedComics = useMemo(() => {
-    if (!result || groupBy === 'none') return null;
-    const groups = new Map<string, ComicListItemDto[]>();
-    for (const comic of result.data) {
-      let key: string;
-      if (groupBy === 'series') {
-        key = comic.series?.name ?? 'No Series';
-      } else {
-        key = comic.publisher?.name ?? 'No Publisher';
+  type VolumeGroup = { volume: string; comics: ComicListItemDto[] }
+  type SeriesGroup = { series: string; volumes: VolumeGroup[] }
+
+  const seriesGrouped = useMemo((): SeriesGroup[] | null => {
+    if (groupBy !== 'series' || comics.length === 0) return null
+
+    const needsInfo: ComicListItemDto[] = []
+    const seriesMap = new Map<string, Map<string, ComicListItemDto[]>>()
+
+    for (const comic of comics) {
+      if (!comic.volume && !comic.issueNumber) {
+        needsInfo.push(comic)
+        continue
       }
-      if (!groups.has(key)) groups.set(key, []);
-      const group = groups.get(key);
-      if (group) group.push(comic);
+
+      const seriesName = comic.series?.name ?? 'No Series'
+      const volumeKey = comic.volume ? `Volume ${comic.volume}` : 'No Volume'
+
+      let volumeMap = seriesMap.get(seriesName)
+      if (!volumeMap) {
+        volumeMap = new Map()
+        seriesMap.set(seriesName, volumeMap)
+      }
+      const group = volumeMap.get(volumeKey)
+      if (group) {
+        group.push(comic)
+      } else {
+        volumeMap.set(volumeKey, [comic])
+      }
     }
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [result, groupBy]);
+
+    const result: SeriesGroup[] = Array.from(seriesMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([seriesName, volumeMap]) => ({
+        series: seriesName,
+        volumes: Array.from(volumeMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+          .map(([volume, items]) => ({ volume, comics: items })),
+      }))
+
+    if (needsInfo.length > 0) {
+      result.push({
+        series: 'More info needed',
+        volumes: [{ volume: '', comics: needsInfo }],
+      })
+    }
+
+    return result
+  }, [comics, groupBy])
+
+  const flatGrouped = useMemo((): [string, ComicListItemDto[]][] | null => {
+    if (groupBy !== 'publisher' || comics.length === 0) return null
+
+    const groups = new Map<string, ComicListItemDto[]>()
+    for (const comic of comics) {
+      const key = comic.publisher?.name ?? 'No Publisher'
+      const group = groups.get(key)
+      if (group) {
+        group.push(comic)
+      } else {
+        groups.set(key, [comic])
+      }
+    }
+
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [comics, groupBy])
+
+  const renderGrid = (items: ComicListItemDto[]) => (
+    <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
+      {items.map((comic) => (
+        <ComicCard key={comic.id} comic={comic} />
+      ))}
+    </SimpleGrid>
+  )
 
   return (
     <Container size="xl" py="md">
@@ -310,7 +402,7 @@ export function ComicsListPage() {
             onChange={(e) => setSearchInput(e.currentTarget.value)}
             leftSection={<IconSearch size={16} />}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSearch(e);
+              if (e.key === 'Enter') handleSearch(e)
             }}
           />
         </form>
@@ -346,58 +438,85 @@ export function ComicsListPage() {
       </Group>
 
       {/* Stats */}
-      {result && (
+      {!loading && (
         <Text size="sm" c="dimmed" mb="md">
-          {isGrouped
-            ? `${result.total} comics`
-            : `Showing ${result.data.length} of ${result.total} comics (Page ${result.page} of ${result.totalPages})`}
+          {total} comics
         </Text>
       )}
 
-      {/* Loading */}
+      {/* Initial loading */}
       {loading && (
         <Center py="xl">
           <Loader size="lg" />
         </Center>
       )}
 
-      {/* Grid */}
-      {result && !loading && result.data.length > 0 && groupedComics && (
-        <Stack gap="lg">
-          {groupedComics.map(([groupName, comics]) => (
-            <div key={groupName}>
+      {/* Series grouped view (series → volume → comics) */}
+      {!loading && comics.length > 0 && seriesGrouped && (
+        <Stack gap="xl">
+          {seriesGrouped.map((group) => (
+            <div key={group.series}>
               <Divider
                 label={
-                  <Text fw={600} size="sm">
-                    {groupName} ({comics.length})
+                  <Text
+                    fw={700}
+                    size="md"
+                    c={
+                      group.series === 'More info needed' ? 'orange' : undefined
+                    }
+                  >
+                    {group.series}
                   </Text>
                 }
                 labelPosition="left"
                 mb="sm"
               />
-              <SimpleGrid
-                cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }}
-                spacing="md"
-              >
-                {comics.map((comic) => (
-                  <ComicCard key={comic.id} comic={comic} />
+              <Stack gap="md" ml="md">
+                {group.volumes.map((vol) => (
+                  <div key={vol.volume}>
+                    {vol.volume && (
+                      <Text size="sm" fw={500} c="dimmed" mb="xs">
+                        {vol.volume} ({vol.comics.length})
+                      </Text>
+                    )}
+                    {renderGrid(vol.comics)}
+                  </div>
                 ))}
-              </SimpleGrid>
+              </Stack>
             </div>
           ))}
         </Stack>
       )}
 
-      {result && !loading && result.data.length > 0 && !groupedComics && (
-        <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
-          {result.data.map((comic) => (
-            <ComicCard key={comic.id} comic={comic} />
+      {/* Publisher grouped view */}
+      {!loading && comics.length > 0 && flatGrouped && (
+        <Stack gap="lg">
+          {flatGrouped.map(([groupName, items]) => (
+            <div key={groupName}>
+              <Divider
+                label={
+                  <Text fw={600} size="sm">
+                    {groupName} ({items.length})
+                  </Text>
+                }
+                labelPosition="left"
+                mb="sm"
+              />
+              {renderGrid(items)}
+            </div>
           ))}
-        </SimpleGrid>
+        </Stack>
       )}
 
+      {/* Flat view */}
+      {!loading &&
+        comics.length > 0 &&
+        !seriesGrouped &&
+        !flatGrouped &&
+        renderGrid(comics)}
+
       {/* Empty */}
-      {result && !loading && result.data.length === 0 && (
+      {!loading && comics.length === 0 && (
         <Center py="xl">
           <Stack align="center" gap="xs">
             <Text c="dimmed">No comics found. Try adjusting filters or</Text>
@@ -408,16 +527,15 @@ export function ComicsListPage() {
         </Center>
       )}
 
-      {/* Pagination — only shown when not grouping */}
-      {!isGrouped && result && result.totalPages > 1 && (
-        <Center mt="xl">
-          <Pagination
-            total={result.totalPages}
-            value={page}
-            onChange={(newPage) => updateFilter('page', String(newPage))}
-          />
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} style={{ height: 1 }} />
+
+      {/* Loading more indicator */}
+      {loadingMore && (
+        <Center py="md">
+          <Loader size="sm" />
         </Center>
       )}
     </Container>
-  );
+  )
 }

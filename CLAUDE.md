@@ -15,14 +15,14 @@
 
 ## Mantine Packages in Use
 
-| Package | Purpose |
-|---|---|
-| `@mantine/core` | Core components |
-| `@mantine/hooks` | Utility hooks |
-| `@mantine/notifications` | Toast notifications for user feedback |
-| `@mantine/modals` | Confirm dialogs (e.g., delete confirmation) — use `modals.openConfirmModal()` instead of `window.confirm()` |
-| `@mantine/dropzone` | File upload via drag-and-drop |
-| `@tabler/icons-react` | Icons (Mantine's recommended icon set) |
+| Package                  | Purpose                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `@mantine/core`          | Core components                                                                                             |
+| `@mantine/hooks`         | Utility hooks                                                                                               |
+| `@mantine/notifications` | Toast notifications for user feedback                                                                       |
+| `@mantine/modals`        | Confirm dialogs (e.g., delete confirmation) — use `modals.openConfirmModal()` instead of `window.confirm()` |
+| `@mantine/dropzone`      | File upload via drag-and-drop                                                                               |
+| `@tabler/icons-react`    | Icons (Mantine's recommended icon set)                                                                      |
 
 ## Component Patterns
 

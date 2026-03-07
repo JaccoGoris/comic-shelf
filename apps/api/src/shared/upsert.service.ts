@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@comic-shelf/db';
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from '@comic-shelf/db'
 
 // Known publisher name variants → canonical name
 const PUBLISHER_ALIASES: Record<string, string> = {
@@ -14,23 +14,23 @@ const PUBLISHER_ALIASES: Record<string, string> = {
   boom: 'BOOM! Studios',
   'boom! studios': 'BOOM! Studios',
   'boom studios': 'BOOM! Studios',
-};
+}
 
 @Injectable()
 export class UpsertService {
   constructor(private readonly prisma: PrismaService) {}
 
   async upsertPublisher(rawName: string) {
-    const name = normalizePublisher(rawName);
+    const name = normalizePublisher(rawName)
     return this.prisma.publisher.upsert({
       where: { name },
       create: { name },
       update: {},
-    });
+    })
   }
 
   async upsertSeries(name: string, publisherId: number | null) {
-    const trimmed = name.trim();
+    const trimmed = name.trim()
     return this.prisma.series.upsert({
       where: {
         name_publisherId: {
@@ -43,48 +43,48 @@ export class UpsertService {
         publisherId,
       },
       update: {},
-    });
+    })
   }
 
   async upsertStoryArc(name: string) {
-    const trimmed = name.trim();
+    const trimmed = name.trim()
     return this.prisma.storyArc.upsert({
       where: { name: trimmed },
       create: { name: trimmed },
       update: {},
-    });
+    })
   }
 
   async upsertCreator(name: string) {
-    const trimmed = name.trim();
+    const trimmed = name.trim()
     return this.prisma.creator.upsert({
       where: { name: trimmed },
       create: { name: trimmed },
       update: {},
-    });
+    })
   }
 
   async upsertCharacter(name: string, alias: string | null = null) {
-    const trimmed = name.trim();
+    const trimmed = name.trim()
     return this.prisma.character.upsert({
       where: { name: trimmed },
       create: { name: trimmed, alias },
       update: alias ? { alias } : {},
-    });
+    })
   }
 
   async upsertGenre(name: string) {
-    const trimmed = name.trim();
+    const trimmed = name.trim()
     return this.prisma.genre.upsert({
       where: { name: trimmed },
       create: { name: trimmed },
       update: {},
-    });
+    })
   }
 }
 
 function normalizePublisher(raw: string): string {
-  const trimmed = raw.trim();
-  const key = trimmed.toLowerCase();
-  return PUBLISHER_ALIASES[key] ?? trimmed;
+  const trimmed = raw.trim()
+  const key = trimmed.toLowerCase()
+  return PUBLISHER_ALIASES[key] ?? trimmed
 }

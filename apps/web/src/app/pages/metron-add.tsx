@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  searchMetronByUpc,
+  searchMetron,
   getMetronIssue,
   importMetronIssue,
-} from '../../api/client';
+} from '../../api/client'
 import type {
   MetronSearchResultDto,
   MetronIssueDetailDto,
-} from '@comic-shelf/shared-types';
+} from '@comic-shelf/shared-types'
 import {
   Container,
   Title,
@@ -27,108 +27,126 @@ import {
   Stack,
   Alert,
   Anchor,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+} from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import {
   IconSearch,
   IconArrowLeft,
   IconPlus,
   IconAlertCircle,
-} from '@tabler/icons-react';
+} from '@tabler/icons-react'
 
-type Step = 'search' | 'results' | 'preview';
+type Step = 'search' | 'results' | 'preview'
+type SearchMode = 'upc' | 'series'
 
 export function MetronAddPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState<Step>('search');
-  const [upc, setUpc] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<MetronSearchResultDto[]>([]);
-  const [detail, setDetail] = useState<MetronIssueDetailDto | null>(null);
+  const navigate = useNavigate()
+  const [step, setStep] = useState<Step>('search')
+  const [searchMode, setSearchMode] = useState<SearchMode>('upc')
+  const [upc, setUpc] = useState('')
+  const [seriesName, setSeriesName] = useState('')
+  const [issueNumber, setIssueNumber] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [results, setResults] = useState<MetronSearchResultDto[]>([])
+  const [detail, setDetail] = useState<MetronIssueDetailDto | null>(null)
 
   const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!upc.trim()) return;
+    e.preventDefault()
 
-    setLoading(true);
-    setError(null);
+    const params =
+      searchMode === 'upc'
+        ? upc.trim()
+          ? { upc: upc.trim() }
+          : null
+        : seriesName.trim() && issueNumber.trim()
+        ? { series_name: seriesName.trim(), number: issueNumber.trim() }
+        : null
+
+    if (!params) return
+
+    setLoading(true)
+    setError(null)
     try {
-      const data = await searchMetronByUpc(upc.trim());
-      setResults(data);
+      const data = await searchMetron(params)
+      setResults(data)
       if (data.length === 0) {
-        setError('No issues found for this UPC. Check the barcode and try again.');
+        setError(
+          searchMode === 'upc'
+            ? 'No issues found for this UPC. Try searching by series name + issue number instead.'
+            : 'No issues found. Check the series name and issue number.',
+        )
       } else {
-        setStep('results');
+        setStep('results')
       }
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Failed to search Metron API.';
-      setError(msg);
+          ?.message ?? 'Failed to search Metron API.'
+      setError(msg)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleSelectIssue = async (metronId: number) => {
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
     try {
-      const data = await getMetronIssue(metronId);
-      setDetail(data);
-      setStep('preview');
+      const data = await getMetronIssue(metronId)
+      setDetail(data)
+      setStep('preview')
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Failed to fetch issue details.';
-      setError(msg);
+          ?.message ?? 'Failed to fetch issue details.'
+      setError(msg)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleImport = async () => {
-    if (!detail) return;
-    setImporting(true);
-    setError(null);
+    if (!detail) return
+    setImporting(true)
+    setError(null)
     try {
-      const result = await importMetronIssue(detail.id);
+      const result = await importMetronIssue(detail.id)
       notifications.show({
         title: 'Comic Added',
         message: `"${detail.series.name} #${detail.number}" has been added to your collection.`,
         color: 'green',
-      });
-      navigate(`/comics/${result.comicId}`);
+      })
+      navigate(`/comics/${result.comicId}`)
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Failed to import comic.';
+          ?.message ?? 'Failed to import comic.'
       if (msg.includes('already exists')) {
         notifications.show({
           title: 'Already Exists',
           message: msg,
           color: 'yellow',
-        });
+        })
       } else {
-        setError(msg);
+        setError(msg)
       }
     } finally {
-      setImporting(false);
+      setImporting(false)
     }
-  };
+  }
 
   const handleBack = () => {
-    setError(null);
+    setError(null)
     if (step === 'preview') {
-      setDetail(null);
-      setStep('results');
+      setDetail(null)
+      setStep('results')
     } else if (step === 'results') {
-      setResults([]);
-      setStep('search');
+      setResults([])
+      setStep('search')
     }
-  };
+  }
 
   return (
     <Container size="lg" py="md">
@@ -152,31 +170,77 @@ export function MetronAddPage() {
       {/* Step 1: Search */}
       {step === 'search' && (
         <Paper withBorder p="lg" radius="md">
-          <Title order={3} mb="md">
-            Search by UPC
-          </Title>
+          <Group mb="md">
+            <Button
+              variant={searchMode === 'upc' ? 'filled' : 'light'}
+              size="xs"
+              onClick={() => setSearchMode('upc')}
+            >
+              Search by UPC
+            </Button>
+            <Button
+              variant={searchMode === 'series' ? 'filled' : 'light'}
+              size="xs"
+              onClick={() => setSearchMode('series')}
+            >
+              Search by Series
+            </Button>
+          </Group>
+
           <Text size="sm" c="dimmed" mb="md">
-            Enter the barcode (UPC) from the comic to look it up on Metron.
+            {searchMode === 'upc'
+              ? 'Enter the barcode (UPC) from the comic to look it up on Metron.'
+              : 'Search by series name and issue number.'}
           </Text>
+
           <form onSubmit={handleSearch}>
-            <Group align="flex-end">
-              <TextInput
-                placeholder="e.g. 75960620919800111"
-                value={upc}
-                onChange={(e) => setUpc(e.currentTarget.value)}
-                leftSection={<IconSearch size={16} />}
-                style={{ flex: 1 }}
-                size="md"
-              />
-              <Button
-                type="submit"
-                loading={loading}
-                leftSection={<IconSearch size={16} />}
-                size="md"
-              >
-                Search
-              </Button>
-            </Group>
+            {searchMode === 'upc' ? (
+              <Group align="flex-end">
+                <TextInput
+                  placeholder="e.g. 75960620919800111"
+                  value={upc}
+                  onChange={(e) => setUpc(e.currentTarget.value)}
+                  leftSection={<IconSearch size={16} />}
+                  style={{ flex: 1 }}
+                  size="md"
+                />
+                <Button
+                  type="submit"
+                  loading={loading}
+                  leftSection={<IconSearch size={16} />}
+                  size="md"
+                >
+                  Search
+                </Button>
+              </Group>
+            ) : (
+              <Group align="flex-end">
+                <TextInput
+                  placeholder="e.g. Amazing Spider-Man"
+                  label="Series Name"
+                  value={seriesName}
+                  onChange={(e) => setSeriesName(e.currentTarget.value)}
+                  style={{ flex: 1 }}
+                  size="md"
+                />
+                <TextInput
+                  placeholder="e.g. 1"
+                  label="Issue #"
+                  value={issueNumber}
+                  onChange={(e) => setIssueNumber(e.currentTarget.value)}
+                  w={100}
+                  size="md"
+                />
+                <Button
+                  type="submit"
+                  loading={loading}
+                  leftSection={<IconSearch size={16} />}
+                  size="md"
+                >
+                  Search
+                </Button>
+              </Group>
+            )}
           </form>
         </Paper>
       )}
@@ -194,8 +258,7 @@ export function MetronAddPage() {
           </Button>
 
           <Text size="sm" c="dimmed" mb="md">
-            {results.length} result{results.length !== 1 ? 's' : ''} found for
-            UPC: {upc}
+            {results.length} result{results.length !== 1 ? 's' : ''} found
           </Text>
 
           {loading ? (
@@ -203,10 +266,7 @@ export function MetronAddPage() {
               <Loader size="lg" />
             </Center>
           ) : (
-            <SimpleGrid
-              cols={{ base: 1, xs: 2, sm: 3, md: 4 }}
-              spacing="md"
-            >
+            <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4 }} spacing="md">
               {results.map((issue) => (
                 <Card
                   key={issue.id}
@@ -277,7 +337,7 @@ export function MetronAddPage() {
         </>
       )}
     </Container>
-  );
+  )
 }
 
 // ─── Preview panel ───────────────────────────────────────
@@ -287,9 +347,9 @@ function PreviewPanel({
   importing,
   onImport,
 }: {
-  detail: MetronIssueDetailDto;
-  importing: boolean;
-  onImport: () => void;
+  detail: MetronIssueDetailDto
+  importing: boolean
+  onImport: () => void
 }) {
   const detailRows = [
     ['Publisher', detail.publisher.name],
@@ -306,7 +366,7 @@ function PreviewPanel({
     detail.isbn && ['ISBN', detail.isbn],
     ['Series Type', detail.series.seriesType.name],
     ['Metron ID', detail.id],
-  ].filter(Boolean) as [string, string | number][];
+  ].filter(Boolean) as [string, string | number][]
 
   return (
     <Stack gap="lg">
@@ -466,5 +526,5 @@ function PreviewPanel({
         </Paper>
       )}
     </Stack>
-  );
+  )
 }

@@ -1,5 +1,5 @@
-import { Module, Global } from '@nestjs/common';
-import { UpsertService } from './upsert.service';
+import { Module, Global } from '@nestjs/common'
+import { UpsertService } from './upsert.service'
 
 @Global()
 @Module({

@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   getComic,
   deleteComic,
   updateComic,
   syncSingleComic,
-} from '../../api/client';
-import type { ComicDetailDto, UpdateComicDto } from '@comic-shelf/shared-types';
-import placeholderImg from '../../assets/comic-card-placeholder.webp';
-import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
-import { comicFormSchema, type ComicFormValues } from './comic-detail-schema';
+} from '../../api/client'
+import type { ComicDetailDto, UpdateComicDto } from '@comic-shelf/shared-types'
+import placeholderImg from '../../assets/comic-card-placeholder.webp'
+import { useForm } from '@mantine/form'
+import { zodResolver } from 'mantine-form-zod-resolver'
+import { comicFormSchema, type ComicFormValues } from './comic-detail-schema'
 import {
   Container,
   Title,
@@ -31,9 +31,9 @@ import {
   Alert,
   Anchor,
   Stack,
-} from '@mantine/core';
-import { modals } from '@mantine/modals';
-import { notifications } from '@mantine/notifications';
+} from '@mantine/core'
+import { modals } from '@mantine/modals'
+import { notifications } from '@mantine/notifications'
 import {
   IconArrowLeft,
   IconTrash,
@@ -42,7 +42,7 @@ import {
   IconDeviceFloppy,
   IconPlus,
   IconX,
-} from '@tabler/icons-react';
+} from '@tabler/icons-react'
 
 function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
   return {
@@ -96,7 +96,7 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     characters: comic.characters.map((c) => ({ name: c.name })),
     storyArcs: comic.storyArcs.map((a) => ({ name: a.name })),
     genres: comic.genres.map((g) => ({ name: g.genre.name, type: g.type })),
-  };
+  }
 }
 
 function formValuesToDto(values: ComicFormValues): UpdateComicDto {
@@ -146,7 +146,7 @@ function formValuesToDto(values: ComicFormValues): UpdateComicDto {
     characters: values.characters,
     storyArcs: values.storyArcs,
     genres: values.genres,
-  };
+  }
 }
 
 const ROLE_OPTIONS = [
@@ -159,21 +159,21 @@ const ROLE_OPTIONS = [
   { value: 'LETTERER', label: 'Letterer' },
   { value: 'EDITOR', label: 'Editor' },
   { value: 'CREATED_BY', label: 'Created By' },
-];
+]
 
 const GENRE_TYPE_OPTIONS = [
   { value: 'GENRE', label: 'Genre' },
   { value: 'SUBGENRE', label: 'Subgenre' },
-];
+]
 
 export function ComicDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [comic, setComic] = useState<ComicDetailDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [comic, setComic] = useState<ComicDetailDto | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   const form = useForm<ComicFormValues>({
     mode: 'uncontrolled',
@@ -225,67 +225,67 @@ export function ComicDetailPage() {
       storyArcs: [],
       genres: [],
     },
-  });
+  })
 
   useEffect(() => {
-    if (!id) return;
-    setLoading(true);
+    if (!id) return
+    setLoading(true)
     getComic(parseInt(id, 10))
       .then((data) => {
-        setComic(data);
-        form.setValues(comicToFormValues(data));
-        form.resetDirty(comicToFormValues(data));
+        setComic(data)
+        form.setValues(comicToFormValues(data))
+        form.resetDirty(comicToFormValues(data))
       })
       .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id])
 
   const handleSave = async (values: ComicFormValues) => {
-    if (!comic) return;
-    setSaving(true);
+    if (!comic) return
+    setSaving(true)
     try {
-      const dto = formValuesToDto(values);
-      const updated = await updateComic(comic.id, dto);
-      setComic(updated);
-      form.setValues(comicToFormValues(updated));
-      form.resetDirty(comicToFormValues(updated));
+      const dto = formValuesToDto(values)
+      const updated = await updateComic(comic.id, dto)
+      setComic(updated)
+      form.setValues(comicToFormValues(updated))
+      form.resetDirty(comicToFormValues(updated))
       notifications.show({
         title: 'Saved',
         message: 'Comic updated successfully.',
         color: 'green',
-      });
+      })
 
       // Auto-sync with Metron if comic has barcode but no metronId
       if (updated.barcode && !updated.metronId) {
-        setSyncing(true);
+        setSyncing(true)
         try {
-          const result = await syncSingleComic(updated.id);
+          const result = await syncSingleComic(updated.id)
           if (result.status === 'synced') {
             notifications.show({
               title: 'Synced with Metron',
               message: `Updated: ${result.updatedFields?.join(', ') ?? 'none'}`,
               color: 'green',
-            });
-            const refreshed = await getComic(updated.id);
-            setComic(refreshed);
-            form.setValues(comicToFormValues(refreshed));
-            form.resetDirty(comicToFormValues(refreshed));
+            })
+            const refreshed = await getComic(updated.id)
+            setComic(refreshed)
+            form.setValues(comicToFormValues(refreshed))
+            form.resetDirty(comicToFormValues(refreshed))
           } else if (result.status === 'skipped') {
             notifications.show({
               title: 'Metron sync skipped',
               message: result.reason ?? 'Unknown reason',
               color: 'yellow',
-            });
+            })
           }
         } catch {
           notifications.show({
             title: 'Metron sync failed',
             message: 'Could not sync with Metron after save.',
             color: 'red',
-          });
+          })
         } finally {
-          setSyncing(false);
+          setSyncing(false)
         }
       }
     } catch {
@@ -293,14 +293,14 @@ export function ComicDetailPage() {
         title: 'Error',
         message: 'Failed to save comic.',
         color: 'red',
-      });
+      })
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const handleDelete = () => {
-    if (!comic) return;
+    if (!comic) return
     modals.openConfirmModal({
       title: 'Delete Comic',
       children: (
@@ -313,69 +313,69 @@ export function ComicDetailPage() {
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         try {
-          await deleteComic(comic.id);
+          await deleteComic(comic.id)
           notifications.show({
             title: 'Deleted',
             message: `"${comic.title}" has been deleted.`,
             color: 'green',
-          });
-          navigate('/comics');
+          })
+          navigate('/comics')
         } catch {
           notifications.show({
             title: 'Error',
             message: 'Failed to delete comic.',
             color: 'red',
-          });
+          })
         }
       },
-    });
-  };
+    })
+  }
 
   const handleSync = async () => {
-    if (!comic) return;
-    setSyncing(true);
+    if (!comic) return
+    setSyncing(true)
     try {
-      const result = await syncSingleComic(comic.id);
+      const result = await syncSingleComic(comic.id)
       if (result.status === 'synced') {
         notifications.show({
           title: 'Synced successfully',
           message: `Updated: ${result.updatedFields?.join(', ') ?? 'none'}`,
           color: 'green',
-        });
-        const updated = await getComic(comic.id);
-        setComic(updated);
-        form.setValues(comicToFormValues(updated));
-        form.resetDirty(comicToFormValues(updated));
+        })
+        const updated = await getComic(comic.id)
+        setComic(updated)
+        form.setValues(comicToFormValues(updated))
+        form.resetDirty(comicToFormValues(updated))
       } else if (result.status === 'skipped') {
         notifications.show({
           title: 'Sync skipped',
           message: result.reason ?? 'Unknown reason',
           color: 'yellow',
-        });
+        })
       } else {
         notifications.show({
           title: 'Sync failed',
           message: result.reason ?? 'Unknown error',
           color: 'red',
-        });
+        })
       }
     } catch {
       notifications.show({
         title: 'Sync error',
         message: 'Failed to sync with Metron.',
         color: 'red',
-      });
+      })
     } finally {
-      setSyncing(false);
+      setSyncing(false)
     }
-  };
+  }
 
   if (loading) {
     return (
       <Center py="xl">
         <Loader size="lg" />
       </Center>
-    );
+    )
   }
 
   if (error) {
@@ -385,7 +385,7 @@ export function ComicDetailPage() {
           {error}
         </Alert>
       </Container>
-    );
+    )
   }
 
   if (!comic) {
@@ -393,7 +393,7 @@ export function ComicDetailPage() {
       <Container size="sm" py="xl">
         <Text>Comic not found.</Text>
       </Container>
-    );
+    )
   }
 
   return (
@@ -956,5 +956,5 @@ export function ComicDetailPage() {
         </Paper>
       </form>
     </Container>
-  );
+  )
 }

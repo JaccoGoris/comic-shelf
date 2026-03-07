@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
-import { Container, Title, Text, Button, Stack, Group } from '@mantine/core';
-import { IconBooks, IconUpload } from '@tabler/icons-react';
+import { Link } from 'react-router-dom'
+import { Container, Title, Text, Button, Stack, Group } from '@mantine/core'
+import { IconBooks, IconUpload } from '@tabler/icons-react'
 
 export function HomePage() {
   return (
@@ -31,5 +31,5 @@ export function HomePage() {
         </Group>
       </Stack>
     </Container>
-  );
+  )
 }

@@ -1,8 +1,8 @@
-import { render } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { MantineProvider } from '@mantine/core';
+import { render } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
+import { MantineProvider } from '@mantine/core'
 
-import App from './app';
+import App from './app'
 
 describe('App', () => {
   it('should render successfully', () => {
@@ -11,10 +11,10 @@ describe('App', () => {
         <MantineProvider>
           <App />
         </MantineProvider>
-      </BrowserRouter>
-    );
-    expect(baseElement).toBeTruthy();
-  });
+      </BrowserRouter>,
+    )
+    expect(baseElement).toBeTruthy()
+  })
 
   it('should have a greeting as the title', () => {
     const { getAllByText } = render(
@@ -22,10 +22,10 @@ describe('App', () => {
         <MantineProvider>
           <App />
         </MantineProvider>
-      </BrowserRouter>
-    );
+      </BrowserRouter>,
+    )
     expect(
-      getAllByText(new RegExp('Comic Shelf', 'gi')).length > 0
-    ).toBeTruthy();
-  });
-});
+      getAllByText(new RegExp('Comic Shelf', 'gi')).length > 0,
+    ).toBeTruthy()
+  })
+})

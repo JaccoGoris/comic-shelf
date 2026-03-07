@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { importComics } from '../../api/client';
-import type { ImportResultDto } from '@comic-shelf/shared-types';
+import { useState } from 'react'
+import { importComics } from '../../api/client'
+import type { ImportResultDto } from '@comic-shelf/shared-types'
 import {
   Container,
   Title,
@@ -11,53 +11,53 @@ import {
   List,
   Spoiler,
   Group,
-} from '@mantine/core';
-import { Dropzone, MIME_TYPES } from '@mantine/dropzone';
-import { notifications } from '@mantine/notifications';
+} from '@mantine/core'
+import { Dropzone, MIME_TYPES } from '@mantine/dropzone'
+import { notifications } from '@mantine/notifications'
 import {
   IconUpload,
   IconFile,
   IconX,
   IconCheck,
   IconAlertCircle,
-} from '@tabler/icons-react';
+} from '@tabler/icons-react'
 
 export function ImportPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<ImportResultDto | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState<ImportResultDto | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
-    if (!file) return;
+    if (!file) return
 
-    setImporting(true);
-    setResult(null);
-    setError(null);
+    setImporting(true)
+    setResult(null)
+    setError(null)
 
     try {
-      const res = await importComics(file);
-      setResult(res);
+      const res = await importComics(file)
+      setResult(res)
       notifications.show({
         title: 'Import complete',
         message: `${res.imported} comics imported, ${res.skipped} skipped.`,
         color: 'green',
         icon: <IconCheck size={16} />,
-      });
+      })
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Import failed. Check the console.';
-      setError(message);
+        err instanceof Error ? err.message : 'Import failed. Check the console.'
+      setError(message)
       notifications.show({
         title: 'Import failed',
         message,
         color: 'red',
         icon: <IconAlertCircle size={16} />,
-      });
+      })
     } finally {
-      setImporting(false);
+      setImporting(false)
     }
-  };
+  }
 
   return (
     <Container size="sm" py="md">
@@ -66,8 +66,8 @@ export function ImportPage() {
       </Title>
       <Text c="dimmed" mb="lg">
         Upload a JSON file exported from your comic tracking app. The file
-        should contain an array of comic objects. Duplicates (by Item Id)
-        will be skipped automatically.
+        should contain an array of comic objects. Duplicates (by Item Id) will
+        be skipped automatically.
       </Text>
 
       <Dropzone
@@ -147,7 +147,11 @@ export function ImportPage() {
               )}
             </List>
             {result.errors.length > 0 && (
-              <Spoiler maxHeight={0} showLabel="Show errors" hideLabel="Hide errors">
+              <Spoiler
+                maxHeight={0}
+                showLabel="Show errors"
+                hideLabel="Hide errors"
+              >
                 <List size="xs" c="red" mt="xs">
                   {result.errors.map((err, i) => (
                     <List.Item key={i}>{err}</List.Item>
@@ -170,5 +174,5 @@ export function ImportPage() {
         </Alert>
       )}
     </Container>
-  );
+  )
 }

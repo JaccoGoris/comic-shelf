@@ -9,9 +9,9 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
-} from '@nestjs/common';
-import { ComicsService } from './comics.service';
-import type { UpdateComicDto } from '@comic-shelf/shared-types';
+} from '@nestjs/common'
+import { ComicsService } from './comics.service'
+import type { UpdateComicDto } from '@comic-shelf/shared-types'
 
 @Controller('comics')
 export class ComicsController {
@@ -42,28 +42,28 @@ export class ComicsController {
       characterId: characterId ? parseInt(characterId, 10) : undefined,
       genreId: genreId ? parseInt(genreId, 10) : undefined,
       read: read === 'true' ? true : read === 'false' ? false : undefined,
-      collectionWishlist: collectionWishlist as 'COLLECTION' | 'WISHLIST' | undefined,
-      sortBy: sortBy ?? 'dateAdded',
-      sortOrder: (sortOrder as 'asc' | 'desc') ?? 'desc',
-    });
+      collectionWishlist: collectionWishlist as
+        | 'COLLECTION'
+        | 'WISHLIST'
+        | undefined,
+      sortBy: sortBy ?? 'volume',
+      sortOrder: (sortOrder as 'asc' | 'desc') ?? 'asc',
+    })
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.comicsService.findOne(id);
+    return this.comicsService.findOne(id)
   }
 
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateComicDto,
-  ) {
-    return this.comicsService.update(id, dto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateComicDto) {
+    return this.comicsService.update(id, dto)
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseIntPipe) id: number) {
-    return this.comicsService.remove(id);
+    return this.comicsService.remove(id)
   }
 }

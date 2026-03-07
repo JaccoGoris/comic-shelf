@@ -1,78 +1,78 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@comic-shelf/db';
-import { CollectionType, CreatorRole } from '@prisma/client';
-import { UpsertService } from '../shared/upsert.service';
+import { Injectable, Logger } from '@nestjs/common'
+import { PrismaService } from '@comic-shelf/db'
+import { CollectionType, CreatorRole } from '@prisma/client'
+import { UpsertService } from '../shared/upsert.service'
 
 interface RawComic {
-  'Item Id': string | number | null;
-  Barcode: number | string | null;
-  Title: string;
-  Synopsis: string | number | null;
-  'Cover Date': string | null;
-  Publisher: string | null;
-  'Issue Number': string | number | null;
-  'Legacy Number': string | number | null;
-  Volume: string | number | null;
-  Month: string | null;
-  Year: number | null;
-  'Variant Number': string | number | null;
-  'Cover Letter': string | number | null;
-  'Purchase Type': string | null;
-  Attributes: string | null;
-  Country: string | null;
-  Printing: string | number | null;
-  'Print Run': number | null;
-  'Print Order Ratio': string | null;
-  'Cover Price': string | null;
-  'Cover Exclusive': string | null;
-  Era: string | null;
-  Genre: string | null;
-  Subgenre: string | null;
-  Language: string | null;
-  'Type of Comic': string | null;
-  Characters: string | null;
-  Series: string | null;
-  'Story Arc': string | null;
-  'Number of Pages': number | null;
-  'Created By': string | null;
-  Writer: string | null;
-  Artist: string | null;
-  Penciller: string | null;
-  Inker: string | null;
-  Colorist: string | null;
-  'Cover Artist': string | null;
-  Letterer: string | null;
-  Editor: string | null;
-  Preordered: boolean;
-  Quantity: string | number | null;
-  'Loaned To': string | null;
-  'Estimated Value': string | null;
-  'Purchase Price': string | null;
-  'Purchase Date': string | null;
-  'Purchased From': string | null;
-  'For Sale': boolean;
-  'Sold For': string | null;
-  'Personal Rating': string | number | null;
-  'Signed By': string | null;
-  Condition: string | null;
-  Read: boolean;
-  'Graded By': string | null;
-  'Graded Rating': string | null;
-  'Graded Label Type': string | null;
-  'Graded Serial Number': string | null;
-  'Grader Notes': string | null;
-  'Page Quality': string | null;
-  'Storage Location': string | null;
-  Notes: string | null;
-  Owner: string | null;
-  Collection: string | null;
-  'Date Added': string | null;
-  'Collection/Wishlist': string | null;
+  'Item Id': string | number | null
+  Barcode: number | string | null
+  Title: string
+  Synopsis: string | number | null
+  'Cover Date': string | null
+  Publisher: string | null
+  'Issue Number': string | number | null
+  'Legacy Number': string | number | null
+  Volume: string | number | null
+  Month: string | null
+  Year: number | null
+  'Variant Number': string | number | null
+  'Cover Letter': string | number | null
+  'Purchase Type': string | null
+  Attributes: string | null
+  Country: string | null
+  Printing: string | number | null
+  'Print Run': number | null
+  'Print Order Ratio': string | null
+  'Cover Price': string | null
+  'Cover Exclusive': string | null
+  Era: string | null
+  Genre: string | null
+  Subgenre: string | null
+  Language: string | null
+  'Type of Comic': string | null
+  Characters: string | null
+  Series: string | null
+  'Story Arc': string | null
+  'Number of Pages': number | null
+  'Created By': string | null
+  Writer: string | null
+  Artist: string | null
+  Penciller: string | null
+  Inker: string | null
+  Colorist: string | null
+  'Cover Artist': string | null
+  Letterer: string | null
+  Editor: string | null
+  Preordered: boolean
+  Quantity: string | number | null
+  'Loaned To': string | null
+  'Estimated Value': string | null
+  'Purchase Price': string | null
+  'Purchase Date': string | null
+  'Purchased From': string | null
+  'For Sale': boolean
+  'Sold For': string | null
+  'Personal Rating': string | number | null
+  'Signed By': string | null
+  Condition: string | null
+  Read: boolean
+  'Graded By': string | null
+  'Graded Rating': string | null
+  'Graded Label Type': string | null
+  'Graded Serial Number': string | null
+  'Grader Notes': string | null
+  'Page Quality': string | null
+  'Storage Location': string | null
+  Notes: string | null
+  Owner: string | null
+  Collection: string | null
+  'Date Added': string | null
+  'Collection/Wishlist': string | null
 }
 
 @Injectable()
 export class ImportService {
-  private readonly logger = new Logger(ImportService.name);
+  private readonly logger = new Logger(ImportService.name)
 
   constructor(
     private readonly prisma: PrismaService,
@@ -80,58 +80,62 @@ export class ImportService {
   ) {}
 
   async importComics(rawEntries: unknown[]) {
-    let imported = 0;
-    let skipped = 0;
-    const errors: string[] = [];
+    let imported = 0
+    let skipped = 0
+    const errors: string[] = []
 
     // Process in batches for better performance
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 50
     for (let i = 0; i < rawEntries.length; i += BATCH_SIZE) {
-      const batch = rawEntries.slice(i, i + BATCH_SIZE);
+      const batch = rawEntries.slice(i, i + BATCH_SIZE)
 
       for (const entry of batch) {
         try {
-          const raw = entry as RawComic;
+          const raw = entry as RawComic
 
           if (!raw['Item Id'] || !raw.Title) {
-            skipped++;
-            continue;
+            skipped++
+            continue
           }
 
-          const itemId = BigInt(String(raw['Item Id']).trim());
+          const itemId = BigInt(String(raw['Item Id']).trim())
 
           // Check if already imported
           const existing = await this.prisma.comic.findUnique({
             where: { itemId },
-          });
+          })
           if (existing) {
-            skipped++;
-            continue;
+            skipped++
+            continue
           }
 
-          await this.importSingleComic(raw, itemId);
-          imported++;
+          await this.importSingleComic(raw, itemId)
+          imported++
         } catch (err) {
-          const raw = entry as RawComic;
-          const msg = `Failed to import "${raw?.Title ?? 'unknown'}" (Item Id: ${raw?.['Item Id'] ?? '?'}): ${err instanceof Error ? err.message : String(err)}`;
-          this.logger.warn(msg);
-          errors.push(msg);
+          const raw = entry as RawComic
+          const msg = `Failed to import "${
+            raw?.Title ?? 'unknown'
+          }" (Item Id: ${raw?.['Item Id'] ?? '?'}): ${
+            err instanceof Error ? err.message : String(err)
+          }`
+          this.logger.warn(msg)
+          errors.push(msg)
         }
       }
     }
 
     this.logger.log(
       `Import complete: ${imported} imported, ${skipped} skipped, ${errors.length} errors`,
-    );
+    )
 
-    return { imported, skipped, errors };
+    return { imported, skipped, errors }
   }
 
   private async importSingleComic(raw: RawComic, itemId: bigint) {
     // ── Publisher ──
     const publisherRecord = raw.Publisher
       ? await this.upsertService.upsertPublisher(raw.Publisher)
-      : null;
+      : null
 
     // ── Series ──
     const seriesRecord = raw.Series
@@ -139,27 +143,25 @@ export class ImportService {
           raw.Series,
           publisherRecord?.id ?? null,
         )
-      : null;
+      : null
 
     // ── Parse prices ──
-    const coverPrice = parsePrice(raw['Cover Price']);
-    const purchasePrice = parsePrice(raw['Purchase Price']);
+    const coverPrice = parsePrice(raw['Cover Price'])
+    const purchasePrice = parsePrice(raw['Purchase Price'])
 
     // ── Parse dates ──
-    const purchaseDate = parseDate(raw['Purchase Date']);
-    const dateAdded = parseDate(raw['Date Added']);
+    const purchaseDate = parseDate(raw['Purchase Date'])
+    const dateAdded = parseDate(raw['Date Added'])
 
     // ── Parse barcode ──
-    const barcode = raw.Barcode
-      ? typeof raw.Barcode === 'number'
-        ? BigInt(Math.round(raw.Barcode)).toString()
-        : String(raw.Barcode)
-      : null;
+    // Convert to string directly to avoid float precision loss for large barcodes (> 2^53)
+    const barcode =
+      raw.Barcode != null
+        ? String(raw.Barcode).replace(/[^\d]/g, '') || null
+        : null
 
     // ── Collection/Wishlist ──
-    const collectionWishlist = parseCollectionType(
-      raw['Collection/Wishlist'],
-    );
+    const collectionWishlist = parseCollectionType(raw['Collection/Wishlist'])
 
     // ── Create comic ──
     const comic = await this.prisma.comic.create({
@@ -169,13 +171,17 @@ export class ImportService {
         title: raw.Title,
         synopsis: raw.Synopsis != null ? String(raw.Synopsis) : null,
         coverDate: raw['Cover Date'] ?? null,
-        issueNumber: raw['Issue Number'] != null ? String(raw['Issue Number']) : null,
-        legacyNumber: raw['Legacy Number'] != null ? String(raw['Legacy Number']) : null,
+        issueNumber:
+          raw['Issue Number'] != null ? String(raw['Issue Number']) : null,
+        legacyNumber:
+          raw['Legacy Number'] != null ? String(raw['Legacy Number']) : null,
         volume: raw.Volume != null ? String(raw.Volume) : null,
         month: raw.Month ?? null,
         year: raw.Year ? Math.round(raw.Year) : null,
-        variantNumber: raw['Variant Number'] != null ? String(raw['Variant Number']) : null,
-        coverLetter: raw['Cover Letter'] != null ? String(raw['Cover Letter']) : null,
+        variantNumber:
+          raw['Variant Number'] != null ? String(raw['Variant Number']) : null,
+        coverLetter:
+          raw['Cover Letter'] != null ? String(raw['Cover Letter']) : null,
         purchaseType: raw['Purchase Type'] ?? null,
         attributes: raw.Attributes ?? null,
         country: raw.Country ?? null,
@@ -203,7 +209,10 @@ export class ImportService {
         purchasedFrom: raw['Purchased From'] ?? null,
         forSale: raw['For Sale'] ?? false,
         soldFor: raw['Sold For'] ?? null,
-        personalRating: raw['Personal Rating'] != null ? String(raw['Personal Rating']) : null,
+        personalRating:
+          raw['Personal Rating'] != null
+            ? String(raw['Personal Rating'])
+            : null,
         signedBy: raw['Signed By'] ?? null,
         condition: raw.Condition ?? null,
         read: raw.Read ?? false,
@@ -222,39 +231,38 @@ export class ImportService {
         publisherId: publisherRecord?.id ?? null,
         seriesId: seriesRecord?.id ?? null,
       },
-    });
+    })
 
     // ── Story Arcs ──
     if (raw['Story Arc']) {
-      const arcNames = splitAndTrim(raw['Story Arc']);
+      const arcNames = splitAndTrim(raw['Story Arc'])
       for (const name of arcNames) {
-        const arc = await this.upsertService.upsertStoryArc(name);
+        const arc = await this.upsertService.upsertStoryArc(name)
         await this.prisma.comicStoryArc.create({
           data: { comicId: comic.id, storyArcId: arc.id },
-        });
+        })
       }
     }
 
     // ── Creators ──
-    const creatorFields: Array<{ field: keyof RawComic; role: CreatorRole }> =
-      [
-        { field: 'Created By', role: 'CREATED_BY' },
-        { field: 'Writer', role: 'WRITER' },
-        { field: 'Artist', role: 'ARTIST' },
-        { field: 'Penciller', role: 'PENCILLER' },
-        { field: 'Inker', role: 'INKER' },
-        { field: 'Colorist', role: 'COLORIST' },
-        { field: 'Cover Artist', role: 'COVER_ARTIST' },
-        { field: 'Letterer', role: 'LETTERER' },
-        { field: 'Editor', role: 'EDITOR' },
-      ];
+    const creatorFields: Array<{ field: keyof RawComic; role: CreatorRole }> = [
+      { field: 'Created By', role: 'CREATED_BY' },
+      { field: 'Writer', role: 'WRITER' },
+      { field: 'Artist', role: 'ARTIST' },
+      { field: 'Penciller', role: 'PENCILLER' },
+      { field: 'Inker', role: 'INKER' },
+      { field: 'Colorist', role: 'COLORIST' },
+      { field: 'Cover Artist', role: 'COVER_ARTIST' },
+      { field: 'Letterer', role: 'LETTERER' },
+      { field: 'Editor', role: 'EDITOR' },
+    ]
 
     for (const { field, role } of creatorFields) {
-      const value = raw[field] as string | null;
-      if (!value) continue;
-      const names = splitAndTrim(value);
+      const value = raw[field] as string | null
+      if (!value) continue
+      const names = splitAndTrim(value)
       for (const name of names) {
-        const creator = await this.upsertService.upsertCreator(name);
+        const creator = await this.upsertService.upsertCreator(name)
         // Avoid duplicate key errors for same creator+role on same comic
         await this.prisma.comicCreator.upsert({
           where: {
@@ -266,32 +274,34 @@ export class ImportService {
           },
           create: { comicId: comic.id, creatorId: creator.id, role },
           update: {},
-        });
+        })
       }
     }
 
     // ── Characters ──
     if (raw.Characters) {
-      const charEntries = splitAndTrim(raw.Characters);
+      const charEntries = splitAndTrim(raw.Characters)
       for (const entry of charEntries) {
-        const { name, alias } = parseCharacterName(entry);
-        const character = await this.upsertService.upsertCharacter(
-          name,
-          alias,
-        );
+        const { name, alias } = parseCharacterName(entry)
+        const character = await this.upsertService.upsertCharacter(name, alias)
         await this.prisma.comicCharacter.upsert({
-          where: { comicId_characterId: { comicId: comic.id, characterId: character.id } },
+          where: {
+            comicId_characterId: {
+              comicId: comic.id,
+              characterId: character.id,
+            },
+          },
           create: { comicId: comic.id, characterId: character.id },
           update: {},
-        });
+        })
       }
     }
 
     // ── Genres ──
     if (raw.Genre) {
-      const genreNames = splitAndTrim(raw.Genre);
+      const genreNames = splitAndTrim(raw.Genre)
       for (const name of genreNames) {
-        const genre = await this.upsertService.upsertGenre(name);
+        const genre = await this.upsertService.upsertGenre(name)
         await this.prisma.comicGenre.upsert({
           where: {
             comicId_genreId_type: {
@@ -302,14 +312,14 @@ export class ImportService {
           },
           create: { comicId: comic.id, genreId: genre.id, type: 'GENRE' },
           update: {},
-        });
+        })
       }
     }
 
     if (raw.Subgenre) {
-      const subgenreNames = splitAndTrim(raw.Subgenre);
+      const subgenreNames = splitAndTrim(raw.Subgenre)
       for (const name of subgenreNames) {
-        const genre = await this.upsertService.upsertGenre(name);
+        const genre = await this.upsertService.upsertGenre(name)
         await this.prisma.comicGenre.upsert({
           where: {
             comicId_genreId_type: {
@@ -324,11 +334,11 @@ export class ImportService {
             type: 'SUBGENRE',
           },
           update: {},
-        });
+        })
       }
     }
 
-    return comic;
+    return comic
   }
 }
 
@@ -338,7 +348,7 @@ function splitAndTrim(value: string): string[] {
   return value
     .split(',')
     .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+    .filter((s) => s.length > 0)
 }
 
 /**
@@ -346,21 +356,21 @@ function splitAndTrim(value: string): string[] {
  * Handles missing closing parens like "Captain America (Steve Rogers"
  */
 function parseCharacterName(raw: string): {
-  name: string;
-  alias: string | null;
+  name: string
+  alias: string | null
 } {
-  const trimmed = raw.trim();
-  const parenOpen = trimmed.indexOf('(');
+  const trimmed = raw.trim()
+  const parenOpen = trimmed.indexOf('(')
   if (parenOpen === -1) {
-    return { name: trimmed, alias: null };
+    return { name: trimmed, alias: null }
   }
-  const name = trimmed.substring(0, parenOpen).trim();
-  let alias = trimmed.substring(parenOpen + 1).trim();
+  const name = trimmed.substring(0, parenOpen).trim()
+  let alias = trimmed.substring(parenOpen + 1).trim()
   // Remove trailing paren if present
   if (alias.endsWith(')')) {
-    alias = alias.slice(0, -1).trim();
+    alias = alias.slice(0, -1).trim()
   }
-  return { name, alias: alias || null };
+  return { name, alias: alias || null }
 }
 
 /**
@@ -368,17 +378,17 @@ function parseCharacterName(raw: string): {
  * Returns { cents, currency }
  */
 function parsePrice(raw: string | null): {
-  cents: number | null;
-  currency: string | null;
+  cents: number | null
+  currency: string | null
 } {
-  if (!raw) return { cents: null, currency: null };
-  const trimmed = raw.trim();
-  const parts = trimmed.split(/\s+/);
-  if (parts.length !== 2) return { cents: null, currency: null };
+  if (!raw) return { cents: null, currency: null }
+  const trimmed = raw.trim()
+  const parts = trimmed.split(/\s+/)
+  if (parts.length !== 2) return { cents: null, currency: null }
 
-  const [locale, centsStr] = parts;
-  const cents = parseInt(centsStr, 10);
-  if (isNaN(cents)) return { cents: null, currency: null };
+  const [locale, centsStr] = parts
+  const cents = parseInt(centsStr, 10)
+  if (isNaN(cents)) return { cents: null, currency: null }
 
   // Map locale prefix to currency code
   const currencyMap: Record<string, string> = {
@@ -387,24 +397,22 @@ function parsePrice(raw: string | null): {
     en_BE: 'EUR',
     en_CA: 'CAD',
     en_AU: 'AUD',
-  };
-  const currency = currencyMap[locale] ?? locale;
+  }
+  const currency = currencyMap[locale] ?? locale
 
-  return { cents, currency };
+  return { cents, currency }
 }
 
 function parseDate(raw: string | null): Date | null {
-  if (!raw) return null;
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? null : d;
+  if (!raw) return null
+  const d = new Date(raw)
+  return isNaN(d.getTime()) ? null : d
 }
 
-function parseCollectionType(
-  raw: string | null,
-): CollectionType | null {
-  if (!raw) return null;
-  const upper = raw.trim().toUpperCase();
-  if (upper === 'COLLECTION') return 'COLLECTION';
-  if (upper === 'WISHLIST') return 'WISHLIST';
-  return null;
+function parseCollectionType(raw: string | null): CollectionType | null {
+  if (!raw) return null
+  const upper = raw.trim().toUpperCase()
+  if (upper === 'COLLECTION') return 'COLLECTION'
+  if (upper === 'WISHLIST') return 'WISHLIST'
+  return null
 }

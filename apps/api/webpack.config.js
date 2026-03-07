@@ -1,14 +1,10 @@
-const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
-const { join } = require('path');
+const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin')
+const { join } = require('path')
 
 module.exports = (config, { options } = {}) => ({
   watch: options?.watch,
   watchOptions: {
-    ignored: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/libs/db/generated/**',
-    ],
+    ignored: ['**/node_modules/**', '**/dist/**', '**/libs/db/generated/**'],
   },
   output: {
     path: join(__dirname, 'dist'),
@@ -20,7 +16,10 @@ module.exports = (config, { options } = {}) => ({
   resolve: {
     alias: {
       '@comic-shelf/db': join(__dirname, '../../libs/db/src/index.ts'),
-      '@comic-shelf/shared-types': join(__dirname, '../../libs/shared-types/src/index.ts'),
+      '@comic-shelf/shared-types': join(
+        __dirname,
+        '../../libs/shared-types/src/index.ts',
+      ),
     },
   },
   plugins: [
@@ -36,4 +35,4 @@ module.exports = (config, { options } = {}) => ({
       sourceMaps: true,
     }),
   ],
-});
+})

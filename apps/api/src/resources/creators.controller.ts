@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { PrismaService } from '@comic-shelf/db';
+import { Controller, Get, Query } from '@nestjs/common'
+import { PrismaService } from '@comic-shelf/db'
 
 @Controller('creators')
 export class CreatorsController {
@@ -12,6 +12,6 @@ export class CreatorsController {
         ? { name: { contains: search, mode: 'insensitive' } }
         : undefined,
       orderBy: { name: 'asc' },
-    });
+    })
   }
 }

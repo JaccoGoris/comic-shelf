@@ -1,23 +1,21 @@
-import { StrictMode } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import * as ReactDOM from 'react-dom/client';
-import { MantineProvider, createTheme } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
-import { ModalsProvider } from '@mantine/modals';
+import { StrictMode } from 'react'
+import { BrowserRouter } from 'react-router-dom'
+import * as ReactDOM from 'react-dom/client'
+import { MantineProvider, createTheme } from '@mantine/core'
+import { Notifications } from '@mantine/notifications'
+import { ModalsProvider } from '@mantine/modals'
 
-import '@mantine/core/styles.css';
-import '@mantine/notifications/styles.css';
-import '@mantine/dropzone/styles.css';
+import '@mantine/core/styles.css'
+import '@mantine/notifications/styles.css'
+import '@mantine/dropzone/styles.css'
 
-import App from './app/app';
+import App from './app/app'
 
 const theme = createTheme({
   primaryColor: 'violet',
-});
+})
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
   <StrictMode>
@@ -29,5 +27,5 @@ root.render(
         </ModalsProvider>
       </MantineProvider>
     </BrowserRouter>
-  </StrictMode>
-);
+  </StrictMode>,
+)

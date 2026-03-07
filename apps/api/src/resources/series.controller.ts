@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { PrismaService } from '@comic-shelf/db';
+import { Controller, Get, Query } from '@nestjs/common'
+import { PrismaService } from '@comic-shelf/db'
 
 @Controller('series')
 export class SeriesController {
@@ -19,6 +19,6 @@ export class SeriesController {
       },
       include: { publisher: true },
       orderBy: { name: 'asc' },
-    });
+    })
   }
 }

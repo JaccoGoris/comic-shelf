@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom'
 import {
   AppShell,
   Group,
@@ -7,16 +7,16 @@ import {
   ActionIcon,
   useMantineColorScheme,
   useComputedColorScheme,
-} from '@mantine/core';
-import { IconSun, IconMoon, IconPlus } from '@tabler/icons-react';
+} from '@mantine/core'
+import { IconSun, IconMoon, IconPlus } from '@tabler/icons-react'
 
 export function Layout() {
-  const { setColorScheme } = useMantineColorScheme();
-  const computedColorScheme = useComputedColorScheme('light');
+  const { setColorScheme } = useMantineColorScheme()
+  const computedColorScheme = useComputedColorScheme('light')
 
   const toggleColorScheme = () => {
-    setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light');
-  };
+    setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')
+  }
 
   return (
     <AppShell header={{ height: 60 }} padding="md">
@@ -65,5 +65,5 @@ export function Layout() {
         <Outlet />
       </AppShell.Main>
     </AppShell>
-  );
+  )
 }
