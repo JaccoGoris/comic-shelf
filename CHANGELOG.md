@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/JaccoGoris/comic-shelf/compare/v1.0.0...v1.0.1) (2026-03-08)
+
+
+### Bug Fixes
+
+* allow rp to tag releases so docker builds ([45cf1e3](https://github.com/JaccoGoris/comic-shelf/commit/45cf1e342faf85d0947211fe7200fd23af9ea023))
+
 ## 1.0.0 (2026-03-08)
 
 
