@@ -34,6 +34,8 @@ jobs:
       - run: npm ci
 
       - run: npx prisma generate --schema ./libs/db/prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
       # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
       # - run: npx nx-cloud record -- echo Hello World
