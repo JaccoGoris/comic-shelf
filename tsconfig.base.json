@@ -20,7 +20,8 @@
     "customConditions": ["@comic-shelf/source"],
     "paths": {
       "@comic-shelf/db": ["libs/db/src/index.ts"],
-      "@comic-shelf/shared-types": ["libs/shared-types/src/index.ts"]
+      "@comic-shelf/shared-types": ["libs/shared-types/src/index.ts"],
+      "@comic-shelf/metron-client": ["libs/metron-client/src/index.ts"]
     }
   }
 }

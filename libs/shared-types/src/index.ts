@@ -1,3 +1,36 @@
+// ─── Auth ────────────────────────────────────────────────
+
+export type UserRole = 'ADMIN' | 'USER'
+
+export interface UserDto {
+  id: number
+  username: string
+  role: UserRole
+  createdAt: string
+}
+
+export interface LoginDto {
+  username: string
+  password: string
+}
+
+export interface SetupDto {
+  username: string
+  password: string
+}
+
+export interface CreateUserDto {
+  username: string
+  password: string
+  role: UserRole
+}
+
+export interface AuthStatusDto {
+  setupComplete: boolean
+  authenticated: boolean
+  user: UserDto | null
+}
+
 // ─── Enums ───────────────────────────────────────────────
 
 export type CreatorRole =

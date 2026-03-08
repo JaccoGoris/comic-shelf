@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
 import {
   AppShell,
   Group,
@@ -7,15 +7,32 @@ import {
   ActionIcon,
   useMantineColorScheme,
   useComputedColorScheme,
+  Tooltip,
 } from '@mantine/core'
-import { IconSun, IconMoon, IconPlus } from '@tabler/icons-react'
+import { notifications } from '@mantine/notifications'
+import {
+  IconSun,
+  IconMoon,
+  IconPlus,
+  IconUsers,
+  IconLogout,
+} from '@tabler/icons-react'
+import { useAuth } from '../auth/auth-context'
 
 export function Layout() {
   const { setColorScheme } = useMantineColorScheme()
   const computedColorScheme = useComputedColorScheme('light')
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const toggleColorScheme = () => {
     setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    notifications.show({ message: 'Logged out', color: 'blue' })
+    navigate('/login')
   }
 
   return (
@@ -46,6 +63,16 @@ export function Layout() {
             <Button variant="subtle" component={Link} to="/import">
               Import
             </Button>
+            {user?.role === 'ADMIN' && (
+              <Button
+                variant="subtle"
+                component={Link}
+                to="/users"
+                leftSection={<IconUsers size={16} />}
+              >
+                Users
+              </Button>
+            )}
             <ActionIcon
               variant="default"
               size="lg"
@@ -58,6 +85,16 @@ export function Layout() {
                 <IconSun size={18} />
               )}
             </ActionIcon>
+            <Tooltip label={`Logout (${user?.username})`}>
+              <ActionIcon
+                variant="default"
+                size="lg"
+                onClick={handleLogout}
+                aria-label="Logout"
+              >
+                <IconLogout size={18} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
         </Group>
       </AppShell.Header>

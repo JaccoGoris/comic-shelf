@@ -16,11 +16,64 @@ import type {
   MetronSyncStatusDto,
   MetronSingleSyncResultDto,
   UpdateComicDto,
+  AuthStatusDto,
+  UserDto,
+  LoginDto,
+  SetupDto,
+  CreateUserDto,
 } from '@comic-shelf/shared-types'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  withCredentials: true,
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  },
+)
+
+// ─── Auth ─────────────────────────────────────────────────
+
+export async function getAuthStatus(): Promise<AuthStatusDto> {
+  const { data } = await api.get('/auth/status')
+  return data
+}
+
+export async function login(dto: LoginDto): Promise<{ user: UserDto }> {
+  const { data } = await api.post('/auth/login', dto)
+  return data
+}
+
+export async function setup(dto: SetupDto): Promise<{ user: UserDto }> {
+  const { data } = await api.post('/auth/setup', dto)
+  return data
+}
+
+export async function logout(): Promise<void> {
+  await api.post('/auth/logout')
+}
+
+// ─── Users ────────────────────────────────────────────────
+
+export async function getUsers(): Promise<UserDto[]> {
+  const { data } = await api.get('/users')
+  return data
+}
+
+export async function createUser(dto: CreateUserDto): Promise<UserDto> {
+  const { data } = await api.post('/users', dto)
+  return data
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await api.delete(`/users/${id}`)
+}
 
 // ─── Comics ──────────────────────────────────────────────
 

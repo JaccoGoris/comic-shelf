@@ -20,6 +20,10 @@ module.exports = (config, { options } = {}) => ({
         __dirname,
         '../../libs/shared-types/src/index.ts',
       ),
+      '@comic-shelf/metron-client': join(
+        __dirname,
+        '../../libs/metron-client/src/index.ts',
+      ),
     },
   },
   plugins: [

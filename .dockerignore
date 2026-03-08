@@ -1,0 +1,13 @@
+node_modules
+.git
+.nx
+dist
+apps/api/dist
+apps/web/dist
+.env
+.DS_Store
+.vscode
+.github
+.claude
+test-output
+coverage

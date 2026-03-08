@@ -10,6 +10,7 @@ import '@mantine/notifications/styles.css'
 import '@mantine/dropzone/styles.css'
 
 import App from './app/app'
+import { AuthProvider } from './auth/auth-context'
 
 const theme = createTheme({
   primaryColor: 'violet',
@@ -23,7 +24,9 @@ root.render(
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <ModalsProvider>
           <Notifications />
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </ModalsProvider>
       </MantineProvider>
     </BrowserRouter>

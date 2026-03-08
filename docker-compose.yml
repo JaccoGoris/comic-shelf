@@ -1,16 +1,46 @@
 services:
+  app:
+    image: ghcr.io/jaccog/comic-shelf:latest
+    container_name: comic-shelf
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comic_shelf}
+      PORT: "3000"
+      METRON_USERNAME: ${METRON_USERNAME:-}
+      METRON_PASSWORD: ${METRON_PASSWORD:-}
+      METRON_API_BASE_URL: ${METRON_API_BASE_URL:-https://metron.cloud}
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-7d}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   postgres:
     image: postgres:16-alpine
     container_name: comic-shelf-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: comic_shelf
-      POSTGRES_PASSWORD: comic_shelf
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comic_shelf}
       POSTGRES_DB: comic_shelf
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - comic_shelf_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comic_shelf"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   comic_shelf_data:

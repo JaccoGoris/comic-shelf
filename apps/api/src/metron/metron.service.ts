@@ -5,90 +5,20 @@ import {
   HttpStatus,
   ConflictException,
 } from '@nestjs/common'
-import { HttpService } from '@nestjs/axios'
+import {
+  MetronClient,
+  MetronApiError,
+  type MetronIssueListItem,
+} from '@comic-shelf/metron-client'
 import { PrismaService } from '@comic-shelf/db'
 import { CreatorRole } from '@prisma/client'
 import { UpsertService } from '../shared/upsert.service'
-import { firstValueFrom, Observable } from 'rxjs'
-import type { AxiosResponse } from 'axios'
 import type {
   MetronSearchResultDto,
   MetronIssueDetailDto,
   MetronSyncStatusDto,
   MetronSingleSyncResultDto,
 } from '@comic-shelf/shared-types'
-
-// ─── Metron API response interfaces ─────────────────────
-
-interface MetronPaginatedResponse<T> {
-  count: number
-  next: string | null
-  previous: string | null
-  results: T[]
-}
-
-interface MetronIssueListItem {
-  id: number
-  series: {
-    name: string
-    volume: number
-    year_began: number
-  }
-  number: string
-  issue: string
-  cover_date: string
-  store_date: string | null
-  image: string | null
-  cover_hash: string
-  modified: string
-}
-
-interface MetronIssueDetail {
-  id: number
-  publisher: { id: number; name: string }
-  imprint: { id: number; name: string } | null
-  series: {
-    id: number
-    name: string
-    sort_name: string
-    volume: number
-    year_began: number
-    series_type: { id: number; name: string }
-    genres: { id: number; name: string }[]
-  }
-  number: string
-  alt_number: string
-  title: string
-  name: string[]
-  cover_date: string
-  store_date: string | null
-  foc_date: string | null
-  price: string | null
-  price_currency: string | null
-  rating: { id: number; name: string } | null
-  sku: string
-  isbn: string
-  upc: string
-  page: number | null
-  desc: string
-  image: string | null
-  cover_hash: string
-  arcs: { id: number; name: string; modified: string }[]
-  credits: {
-    id: number
-    creator: string
-    role: { id: number; name: string }[]
-  }[]
-  characters: { id: number; name: string; modified: string }[]
-  teams: { id: number; name: string; modified: string }[]
-  universes: { id: number; name: string; modified: string }[]
-  reprints: unknown[]
-  variants: unknown[]
-  cv_id: number | null
-  gcd_id: number | null
-  resource_url: string
-  modified: string
-}
 
 // ─── Metron role name → CreatorRole mapping ──────────────
 
@@ -122,62 +52,17 @@ export class MetronService {
   }
 
   constructor(
-    private readonly httpService: HttpService,
+    private readonly metronClient: MetronClient,
     private readonly prisma: PrismaService,
     private readonly upsertService: UpsertService,
   ) {}
-
-  // ─── API wrapper ───────────────────────────────────────
-
-  private async callApi<T>(
-    request: () => Observable<AxiosResponse<T>>,
-    context: string,
-    maxRetries = 3,
-  ): Promise<AxiosResponse<T>> {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await firstValueFrom(request())
-      } catch (error) {
-        const axiosError = error as {
-          response?: {
-            status: number
-            headers: Record<string, string>
-            data: unknown
-          }
-        }
-        if (axiosError.response?.status === 429 && attempt < maxRetries) {
-          const waitMs = parseRetryAfter(
-            axiosError.response.headers['retry-after'],
-          )
-          this.logger.warn(
-            `[${context}] 429 — Retry-After: ${waitMs}ms (attempt ${
-              attempt + 1
-            }/${maxRetries})`,
-          )
-          await new Promise((r) => setTimeout(r, waitMs))
-          continue
-        }
-        throw error
-      }
-    }
-    // Unreachable — loop always returns or throws — but satisfies TypeScript
-    throw new Error('callApi exhausted retries')
-  }
 
   // ─── API calls ─────────────────────────────────────────
 
   async searchByUpc(upc: string): Promise<MetronSearchResultDto[]> {
     try {
-      const response = await this.callApi(
-        () =>
-          this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-            '/api/issue/',
-            { params: { upc } },
-          ),
-        'searchByUpc',
-      )
-
-      return this.mapIssueResults(response.data.results)
+      const response = await this.metronClient.searchIssues({ upc })
+      return this.mapIssueResults(response.results)
     } catch (error) {
       this.handleApiError(error, 'searchByUpc')
     }
@@ -189,7 +74,7 @@ export class MetronService {
     publisherName?: string,
   ): Promise<MetronSearchResultDto[]> {
     try {
-      const params: Record<string, string> = {
+      const params: { series_name: string; number: string; publisher_name?: string } = {
         series_name: seriesName,
         number: issueNumber,
       }
@@ -197,16 +82,8 @@ export class MetronService {
         params.publisher_name = publisherName
       }
 
-      const response = await this.callApi(
-        () =>
-          this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-            '/api/issue/',
-            { params },
-          ),
-        'searchBySeriesAndIssue',
-      )
-
-      return this.mapIssueResults(response.data.results)
+      const response = await this.metronClient.searchIssues(params)
+      return this.mapIssueResults(response.results)
     } catch (error) {
       this.handleApiError(error, 'searchBySeriesAndIssue')
     }
@@ -247,13 +124,7 @@ export class MetronService {
 
   async getIssueDetail(metronId: number): Promise<MetronIssueDetailDto> {
     try {
-      const response = await this.callApi(
-        () =>
-          this.httpService.get<MetronIssueDetail>(`/api/issue/${metronId}/`),
-        'getIssueDetail',
-      )
-
-      const issue = response.data
+      const issue = await this.metronClient.getIssueDetail(metronId)
       return {
         id: issue.id,
         publisher: issue.publisher,
@@ -527,15 +398,10 @@ export class MetronService {
         // Try UPC lookup first
         let results: MetronIssueListItem[] = []
         if (comic.barcode) {
-          const res = await this.callApi(
-            () =>
-              this.httpService.get<
-                MetronPaginatedResponse<MetronIssueListItem>
-              >('/api/issue/', { params: { upc: comic.barcode } }),
-            `runSync:comic#${comic.id}:upc`,
-            5,
-          )
-          results = res.data.results
+          const res = await this.metronClient.searchIssues({
+            upc: comic.barcode,
+          })
+          results = res.results
         }
 
         // Discard UPC results that don't match the stored issue number
@@ -556,22 +422,11 @@ export class MetronService {
           this.logger.log(
             `UPC lookup failed for comic #${comic.id}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`,
           )
-          const params: Record<string, string> = {
+          const res = await this.metronClient.searchIssues({
             series_name: comic.series.name,
             number: comic.issueNumber,
-          }
-          if (comic.publisher?.name) {
-            params.publisher_name = comic.publisher.name
-          }
-          const res = await this.callApi(
-            () =>
-              this.httpService.get<
-                MetronPaginatedResponse<MetronIssueListItem>
-              >('/api/issue/', { params }),
-            `runSync:comic#${comic.id}:series`,
-            5,
-          )
-          results = res.data.results
+          })
+          results = res.results
         }
 
         const item = this.autoMatchIssue(results, comic.issueNumber)
@@ -582,7 +437,7 @@ export class MetronService {
           })
 
           // Fetch full detail to get the correct UPC from Metron
-          const detail = await this.getIssueDetail(item.id)
+          const detail = await this.metronClient.getIssueDetail(item.id)
 
           await this.prisma.comic.update({
             where: { id: comic.id },
@@ -664,16 +519,8 @@ export class MetronService {
       // Try UPC lookup first
       let results: MetronIssueListItem[] = []
       if (comic.barcode) {
-        const res = await this.callApi(
-          () =>
-            this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-              '/api/issue/',
-              { params: { upc: comic.barcode } },
-            ),
-          `syncSingle:comic#${comicId}:upc`,
-          5,
-        )
-        results = res.data.results
+        const res = await this.metronClient.searchIssues({ upc: comic.barcode })
+        results = res.results
       }
 
       // Discard UPC results that don't match the stored issue number
@@ -692,20 +539,12 @@ export class MetronService {
         this.logger.log(
           `UPC lookup failed for comic #${comicId}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`,
         )
-        const params: Record<string, string> = {
+        const params: { series_name: string; number: string; publisher_name?: string } = {
           series_name: comic.series.name,
           number: comic.issueNumber,
         }
-        const res = await this.callApi(
-          () =>
-            this.httpService.get<MetronPaginatedResponse<MetronIssueListItem>>(
-              '/api/issue/',
-              { params },
-            ),
-          `syncSingle:comic#${comicId}:series`,
-          5,
-        )
-        results = res.data.results
+        const res = await this.metronClient.searchIssues(params)
+        results = res.results
       }
 
       const matched = this.autoMatchIssue(results, comic.issueNumber)
@@ -849,22 +688,10 @@ export class MetronService {
   // ─── Error handling ────────────────────────────────────
 
   private handleApiError(error: unknown, method: string): never {
-    const axiosError = error as {
-      response?: {
-        status: number
-        headers: Record<string, string>
-        data: unknown
-      }
-      message?: string
-    }
+    if (error instanceof MetronApiError) {
+      const status = error.statusCode
+      this.logger.error(`Metron API error in ${method}: ${status} — ${error.message}`)
 
-    if (axiosError.response) {
-      const status = axiosError.response.status
-      this.logger.error(
-        `Metron API error in ${method}: ${status} — ${JSON.stringify(
-          axiosError.response.data,
-        )}`,
-      )
       if (status === 401) {
         throw new HttpException(
           'Metron API authentication failed. Check METRON_USERNAME and METRON_PASSWORD.',
@@ -878,12 +705,17 @@ export class MetronService {
         )
       }
       if (status === 429) {
-        const retryAfter = axiosError.response.headers?.['retry-after']
         throw new HttpException(
-          retryAfter
-            ? `Metron API rate limit exceeded. Retry after ${retryAfter}s.`
+          error.retryAfter
+            ? `Metron API rate limit exceeded. Retry after ${error.retryAfter / 1000}s.`
             : 'Metron API rate limit exceeded. Please wait and try again.',
           HttpStatus.TOO_MANY_REQUESTS,
+        )
+      }
+      if (status === 0) {
+        throw new HttpException(
+          'Failed to reach Metron API.',
+          HttpStatus.BAD_GATEWAY,
         )
       }
       throw new HttpException(
@@ -892,9 +724,8 @@ export class MetronService {
       )
     }
 
-    this.logger.error(
-      `Metron API error in ${method}: ${axiosError.message ?? error}`,
-    )
+    const message = error instanceof Error ? error.message : String(error)
+    this.logger.error(`Metron API error in ${method}: ${message}`)
     throw new HttpException(
       'Failed to reach Metron API.',
       HttpStatus.BAD_GATEWAY,
@@ -907,13 +738,4 @@ export class MetronService {
 function mapMetronRole(roleName: string): CreatorRole | null {
   const key = roleName.toLowerCase().trim()
   return ROLE_MAP[key] ?? null
-}
-
-function parseRetryAfter(header: string | undefined): number {
-  if (!header) return 60_000
-  const seconds = parseInt(header, 10)
-  if (!isNaN(seconds)) return seconds * 1000
-  const date = Date.parse(header)
-  if (!isNaN(date)) return Math.max(0, date - Date.now())
-  return 60_000
 }
