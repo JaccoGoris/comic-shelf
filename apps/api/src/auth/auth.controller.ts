@@ -9,10 +9,10 @@ import {
   HttpCode,
 } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
-import { Request, Response } from 'express'
+import type { Request, Response } from 'express'
 import { AuthService } from './auth.service'
 import { Public } from './decorators/public.decorator'
-import type { LoginDto, SetupDto } from '@comic-shelf/shared-types'
+import type { SetupDto } from '@comic-shelf/shared-types'
 
 function cookieMaxAge(expiration: string): number {
   const unit = expiration.slice(-1)

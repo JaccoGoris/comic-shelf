@@ -12,7 +12,7 @@ import {
   Spoiler,
   Group,
 } from '@mantine/core'
-import { Dropzone, MIME_TYPES } from '@mantine/dropzone'
+import { Dropzone } from '@mantine/dropzone'
 import { notifications } from '@mantine/notifications'
 import {
   IconUpload,
@@ -80,7 +80,7 @@ export function ImportPage() {
           })
         }
         maxSize={100 * 1024 * 1024}
-        accept={[MIME_TYPES.json, 'application/json']}
+        accept={['application/json']}
         multiple={false}
         loading={importing}
         mb="md"

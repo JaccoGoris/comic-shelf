@@ -11,8 +11,8 @@
       "@nx/react/typings/image.d.ts",
       "vite/client"
     ],
-    "composite": false,
-    "emitDeclarationOnly": false,
+    "composite": true,
+    "declaration": true,
     "declarationMap": false,
     "module": "esnext",
     "moduleResolution": "bundler"
@@ -36,5 +36,10 @@
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../../libs/shared-types"
+    }
+  ]
 }

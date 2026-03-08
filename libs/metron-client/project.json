@@ -1,0 +1,6 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "@comic-shelf/metron-client",
+  "sourceRoot": "libs/metron-client/src",
+  "projectType": "library"
+}

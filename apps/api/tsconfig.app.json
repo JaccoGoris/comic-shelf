@@ -5,8 +5,8 @@
     "types": ["node"],
     "rootDir": "../../",
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
-    "composite": false,
-    "emitDeclarationOnly": false,
+    "composite": true,
+    "declaration": true,
     "declarationMap": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -22,5 +22,16 @@
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
+  ],
+  "references": [
+    {
+      "path": "../../libs/metron-client"
+    },
+    {
+      "path": "../../libs/shared-types"
+    },
+    {
+      "path": "../../libs/db"
+    }
   ]
 }

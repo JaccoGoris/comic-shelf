@@ -4,6 +4,15 @@
   "include": [],
   "references": [
     {
+      "path": "../../libs/metron-client"
+    },
+    {
+      "path": "../../libs/shared-types"
+    },
+    {
+      "path": "../../libs/db"
+    },
+    {
       "path": "./tsconfig.app.json"
     },
     {

@@ -33,6 +33,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npx prisma generate --schema ./libs/db/prisma/schema.prisma
+
       # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
       # - run: npx nx-cloud record -- echo Hello World
       - run: npx nx run-many -t lint test build typecheck
