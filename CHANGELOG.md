@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.5...v1.2.0) (2026-03-09)
+
+
+### Features
+
+* added versioned backup and restore feature, small prod fix ([5ec00c4](https://github.com/JaccoGoris/comic-shelf/commit/5ec00c4d962bf637459cb3f066568a3b04a136e7))
+
+
+### Bug Fixes
+
+* build fix ([c8f2ad6](https://github.com/JaccoGoris/comic-shelf/commit/c8f2ad6d69c42b2b3cb5b368f072ad28e6dc1702))
+* fixing the build again: electric boogaloo ([15f2bf5](https://github.com/JaccoGoris/comic-shelf/commit/15f2bf5371fff5f2170f6943c728f06d6a29e38c))
+
 ## [1.1.5](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.4...v1.1.5) (2026-03-09)
 
 
