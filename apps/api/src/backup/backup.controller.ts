@@ -67,7 +67,7 @@ export class BackupController {
         throw new BadRequestException('Invalid backup envelope: comics must be an array.')
       }
       version = envelope.version
-      rawComics = envelope.comics as Record<string, unknown>[]
+      rawComics = envelope.comics as unknown as Record<string, unknown>[]
     } else {
       throw new BadRequestException('Unrecognised backup format.')
     }

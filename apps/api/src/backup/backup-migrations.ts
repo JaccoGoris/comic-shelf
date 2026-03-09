@@ -41,5 +41,5 @@ export function migrateToCurrentVersion(
       current = migrate(current)
     }
   }
-  return current as BackupComicDto[]
+  return current as unknown as BackupComicDto[]
 }
