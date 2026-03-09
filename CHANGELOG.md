@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.0.2...v1.1.0) (2026-03-09)
+
+
+### Features
+
+* moved to prisma 7 ([465ce4a](https://github.com/JaccoGoris/comic-shelf/commit/465ce4a0d0db56d98a2e39fb3eb0fccedb5ab065))
+
+
+### Bug Fixes
+
+* prisma schema changes ([4b4d545](https://github.com/JaccoGoris/comic-shelf/commit/4b4d5450ef9c4e2728f184e352cb366f64d93542))
+
 ## [1.0.2](https://github.com/JaccoGoris/comic-shelf/compare/v1.0.1...v1.0.2) (2026-03-09)
 
 
