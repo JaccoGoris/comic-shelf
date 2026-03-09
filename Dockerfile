@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL=postgresql://prisma:prisma@localhost:5432/prisma
 ENV NX_DAEMON=false
-RUN npx prisma generate --schema ./libs/db/prisma/schema.prisma
+RUN npx prisma generate
 RUN npx nx build api --configuration=production
 RUN npx nx build web
 
@@ -25,11 +25,12 @@ COPY --from=build /app/apps/api/dist/ ./
 # Install production runtime deps from generated package.json
 RUN npm ci --omit=dev
 
-# Install prisma CLI for migrations
-RUN npm install prisma --no-save
+# Install prisma CLI and dotenv for migrations
+RUN npm install prisma dotenv --no-save
 
-# Copy Prisma schema + migrations (needed for migrate deploy)
-COPY --from=build /app/libs/db/prisma/ ./prisma/
+# Copy Prisma config and schema + migrations (needed for migrate deploy)
+COPY --from=build /app/prisma.config.ts ./
+COPY --from=build /app/libs/db/prisma/ ./libs/db/prisma/
 
 # Copy Prisma generated client and query engine from build stage
 COPY --from=build /app/node_modules/.prisma/ ./node_modules/.prisma/
