@@ -20,20 +20,20 @@ No need to clone the repo — the app is published as a Docker image. Create a `
 
 ```yaml
 services:
-  comic-shelf-app:
-    image: ghcr.io/jaccog/comic-shelf:latest
-    container_name: comic-shelf-app
+  comic-shelf:
+    image: ghcr.io/jaccogoris/comic-shelf:latest
+    container_name: comic-shelf
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       POSTGRES_HOST: comic-shelf-postgres
-      POSTGRES_PASSWORD: changeme
-      JWT_SECRET: replace-with-a-long-random-secret
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-long-random-secret}
       JWT_EXPIRATION: 7d
       # Optional — needed for Metron metadata sync
-      METRON_USERNAME: ""
-      METRON_PASSWORD: ""
+      METRON_USERNAME: ${METRON_USERNAME:-""}
+      METRON_PASSWORD: ${METRON_PASSWORD:-""}
     depends_on:
       comic-shelf-postgres:
         condition: service_healthy
@@ -43,13 +43,13 @@ services:
     container_name: comic-shelf-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: comic_shelf
-      POSTGRES_PASSWORD: changeme
-      POSTGRES_DB: comic_shelf
+      POSTGRES_USER: ${POSTGRES_USER:-comic_shelf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-comic_shelf}
     volumes:
       - comic_shelf_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U comic_shelf"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comic_shelf}"]
       interval: 10s
       timeout: 5s
       retries: 5
