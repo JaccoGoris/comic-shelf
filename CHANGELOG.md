@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.1...v1.1.2) (2026-03-09)
+
+
+### Bug Fixes
+
+* docker entry point ([30fb831](https://github.com/JaccoGoris/comic-shelf/commit/30fb831ba196bee4ef7e2e4c4371ff5826b74aee))
+
 ## [1.1.1](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.0...v1.1.1) (2026-03-09)
 
 
