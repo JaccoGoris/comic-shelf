@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./out-tsc/jest",
+    "tsBuildInfoFile": "./out-tsc/jest/tsconfig.spec.tsbuildinfo",
+    "composite": true,
+    "declaration": true,
     "types": ["jest", "node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
