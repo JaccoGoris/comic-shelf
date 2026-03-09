@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.5](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.4...v1.1.5) (2026-03-09)
+
+
+### Bug Fixes
+
+* path exclude crash ([fedf8a8](https://github.com/JaccoGoris/comic-shelf/commit/fedf8a82aab6d40dab8af73bc2b6238596fb4b6a))
+
 ## [1.1.4](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.3...v1.1.4) (2026-03-09)
 
 
