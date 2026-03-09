@@ -103,7 +103,7 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
           }}
         >
           <Badge color="orange" size="xs" mb="xs">
-            More info needed
+            More info required
           </Badge>
         </Group>
       )}
