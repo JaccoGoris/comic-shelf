@@ -25,8 +25,8 @@ COPY --from=build /app/apps/api/dist/ ./
 # Install production runtime deps from generated package.json
 RUN npm ci --omit=dev
 
-# Install prisma CLI for migrations
-RUN npm install prisma@7 --no-save
+# Install prisma CLI for migrations + client runtime (externalized by webpack)
+RUN npm install prisma@7 @prisma/client@7 --no-save
 
 # Copy Prisma config and schema + migrations (needed for migrate deploy)
 COPY --from=build /app/prisma.config.ts ./
