@@ -43,7 +43,7 @@ jobs:
 
       - run: npm ci
 
-      - run: npx prisma generate --schema ./libs/db/prisma/schema.prisma
+      - run: npx prisma generate
         env:
           DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 

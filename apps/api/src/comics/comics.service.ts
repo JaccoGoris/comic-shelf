@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { PrismaService } from '@comic-shelf/db'
-import { Prisma } from '@prisma/client'
+import { PrismaService, Prisma } from '@comic-shelf/db'
 import { UpsertService } from '../shared/upsert.service'
 import type { UpdateComicDto } from '@comic-shelf/shared-types'
 

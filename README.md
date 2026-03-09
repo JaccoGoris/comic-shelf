@@ -1,5 +1,8 @@
 # Comic Shelf
 
+> [!WARNING]
+> **WARNING: This project is in early development and highly experimental.** Expect breaking changes, incomplete features, and rough edges. Use at your own risk — data loss or migration issues may occur between versions. Contributions and bug reports are welcome, but please be aware that the API, database schema, and configuration may change without notice.
+
 A self-hosted comic book collection manager. Track your comics, sync metadata from [Metron](https://metron.cloud), and browse your collection from any device.
 
 ## Features

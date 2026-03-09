@@ -25,15 +25,15 @@ COPY --from=build /app/apps/api/dist/ ./
 # Install production runtime deps from generated package.json
 RUN npm ci --omit=dev
 
-# Install prisma CLI and dotenv for migrations
-RUN npm install prisma dotenv --no-save
+# Install prisma CLI for migrations
+RUN npm install prisma@7 --no-save
 
 # Copy Prisma config and schema + migrations (needed for migrate deploy)
 COPY --from=build /app/prisma.config.ts ./
 COPY --from=build /app/libs/db/prisma/ ./libs/db/prisma/
 
 # Copy Prisma generated client and query engine from build stage
-COPY --from=build /app/node_modules/.prisma/ ./node_modules/.prisma/
+COPY --from=build /app/libs/db/generated/ ./libs/db/generated/
 
 # Copy built frontend static files
 COPY --from=build /app/apps/web/dist/ ./public/

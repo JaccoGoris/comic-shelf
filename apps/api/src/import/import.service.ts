@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@comic-shelf/db'
-import { CollectionType, CreatorRole } from '@prisma/client'
+import type { CollectionType, CreatorRole } from '@comic-shelf/shared-types'
 import { UpsertService } from '../shared/upsert.service'
 
 interface RawComic {

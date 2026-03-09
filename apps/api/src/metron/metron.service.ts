@@ -11,7 +11,7 @@ import {
   type MetronIssueListItem,
 } from '@comic-shelf/metron-client'
 import { PrismaService } from '@comic-shelf/db'
-import { CreatorRole } from '@prisma/client'
+import type { CreatorRole } from '@comic-shelf/shared-types'
 import { UpsertService } from '../shared/upsert.service'
 import type {
   MetronSearchResultDto,
