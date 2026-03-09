@@ -18,7 +18,7 @@ import { UsersModule } from '../users/users.module'
       rootPath:
         process.env.FRONTEND_DIST_PATH ||
         join(__dirname, '..', 'public'),
-      exclude: ['/api/(.*)'],
+      exclude: ['/api/{*path}'],
     }),
     PrismaModule,
     SharedModule,
