@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.3...v1.1.4) (2026-03-09)
+
+
+### Bug Fixes
+
+* include prisma client ([3b59090](https://github.com/JaccoGoris/comic-shelf/commit/3b59090a302f05a3b7af1f51184c7b86ff983fd4))
+
 ## [1.1.3](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.2...v1.1.3) (2026-03-09)
 
 
