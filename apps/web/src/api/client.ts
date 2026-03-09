@@ -21,6 +21,7 @@ import type {
   LoginDto,
   SetupDto,
   CreateUserDto,
+  BackupImportResultDto,
 } from '@comic-shelf/shared-types'
 
 const api = axios.create({
@@ -127,6 +128,29 @@ export async function importComics(file: File): Promise<ImportResultDto> {
   const { data } = await api.post('/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300000, // 5 min for large imports
+  })
+  return data
+}
+
+// ─── Backup ──────────────────────────────────────────────
+
+export async function exportBackup(): Promise<void> {
+  const response = await api.get('/backup/export', { responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'application/json' }))
+  const date = new Date().toISOString().slice(0, 10)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `comic-shelf-backup-${date}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export async function importBackup(file: File): Promise<BackupImportResultDto> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/backup/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000,
   })
   return data
 }

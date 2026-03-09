@@ -26,12 +26,12 @@ function cookieMaxAge(expiration: string): number {
   return (multipliers[unit] ?? 7 * 24 * 60 * 60 * 1000) * value
 }
 
-function setCookieToken(res: Response, token: string) {
+function setCookieToken(req: Request, res: Response, token: string) {
   const expiration = process.env.JWT_EXPIRATION || '7d'
   res.cookie('access_token', token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: req.secure,
     path: '/',
     maxAge: cookieMaxAge(expiration),
   })
@@ -49,9 +49,9 @@ export class AuthController {
 
   @Public()
   @Post('setup')
-  async setup(@Body() dto: SetupDto, @Res({ passthrough: true }) res: Response) {
+  async setup(@Body() dto: SetupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { token, user } = await this.authService.setup(dto.username, dto.password)
-    setCookieToken(res, token)
+    setCookieToken(req, res, token)
     return { user }
   }
 
@@ -61,7 +61,7 @@ export class AuthController {
   @HttpCode(200)
   async login(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { token, user } = await this.authService.login(req.user as any)
-    setCookieToken(res, token)
+    setCookieToken(req, res, token)
     return { user }
   }
 

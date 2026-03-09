@@ -12,7 +12,12 @@
     "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d && npx prisma migrate dev",
     "db:studio": "npx prisma studio",
     "db:migrate": "npx prisma migrate dev",
-    "db:generate": "npx prisma generate"
+    "db:generate": "npx prisma generate",
+    "docker:build": "docker compose -f docker-compose.local.yml build",
+    "docker:up": "docker compose -f docker-compose.local.yml up -d",
+    "docker:down": "docker compose -f docker-compose.local.yml down",
+    "docker:reset": "docker compose -f docker-compose.local.yml down -v && docker compose -f docker-compose.local.yml up -d",
+    "docker:logs": "docker compose -f docker-compose.local.yml logs -f app"
   },
   "private": true,
   "devDependencies": {

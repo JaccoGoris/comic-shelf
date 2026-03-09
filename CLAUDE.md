@@ -50,3 +50,14 @@
 - **Rate limits**: The Metron API enforces **20 requests per minute** and **5,000 requests per day**. The backend `MetronService` has an in-memory rate limiter to respect these limits. Never bypass or disable the rate limiter.
 - **Base URL**: Configured via `METRON_API_BASE_URL` in `.env` (default: `https://metron.cloud`).
 - All Metron API calls are proxied through the backend — never call the Metron API directly from the frontend.
+
+## Database Schema Changes
+
+When adding a new DB field, update the backup system to keep it schema-resilient:
+
+1. Add field to `BackupComicDto` in `libs/shared-types/src/index.ts`
+2. Add to export mapping in `apps/api/src/backup/backup.service.ts` (`exportAll`)
+3. Add to `scalarData` import mapping in `backup.service.ts` (`importBackup`)
+4. Bump `CURRENT_BACKUP_VERSION` in `apps/api/src/backup/backup-migrations.ts`
+5. Add a `migrateVNtoVN1()` function with sensible defaults for missing data
+6. Register the migration function in the `migrations` map in `backup-migrations.ts`

@@ -252,6 +252,87 @@ export interface MetronSingleSyncResultDto {
   updatedFields?: string[]
 }
 
+// ─── Backup ─────────────────────────────────────────────
+
+export interface BackupComicDto {
+  itemId: string
+  metronId: number | null
+  barcode: string | null
+  title: string
+  synopsis: string | null
+  issueNumber: string | null
+  legacyNumber: string | null
+  volume: string | null
+  month: string | null
+  year: number | null
+  variantNumber: string | null
+  coverLetter: string | null
+  purchaseType: string | null
+  attributes: string | null
+  country: string | null
+  printing: string | null
+  printRun: number | null
+  printOrderRatio: string | null
+  coverDate: string | null
+  coverPriceRaw: string | null
+  coverPriceCents: number | null
+  coverPriceCurrency: string | null
+  coverExclusive: string | null
+  coverImageUrl: string | null
+  era: string | null
+  language: string | null
+  typeOfComic: string | null
+  numberOfPages: number | null
+  preordered: boolean
+  quantity: number
+  loanedTo: string | null
+  estimatedValue: string | null
+  purchasePriceRaw: string | null
+  purchasePriceCents: number | null
+  purchasePriceCurrency: string | null
+  purchaseDate: string | null
+  purchasedFrom: string | null
+  forSale: boolean
+  soldFor: string | null
+  personalRating: string | null
+  signedBy: string | null
+  condition: string | null
+  read: boolean
+  gradedBy: string | null
+  gradedRating: string | null
+  gradedLabelType: string | null
+  gradedSerialNumber: string | null
+  graderNotes: string | null
+  pageQuality: string | null
+  storageLocation: string | null
+  notes: string | null
+  owner: string | null
+  collectionName: string | null
+  dateAdded: string | null
+  storeDate: string | null
+  createdAt: string
+  updatedAt: string
+  collectionWishlist: CollectionType | null
+  publisher: string | null
+  series: string | null
+  creators: { name: string; role: CreatorRole }[]
+  characters: { name: string; alias: string | null }[]
+  storyArcs: string[]
+  genres: { name: string; type: GenreType }[]
+}
+
+export interface BackupEnvelope {
+  version: number
+  exportedAt: string
+  comics: BackupComicDto[]
+}
+
+export interface BackupImportResultDto {
+  created: number
+  updated: number
+  errors: string[]
+}
+
 // ─── Update DTO ─────────────────────────────────────────
 
 export interface UpdateComicDto {

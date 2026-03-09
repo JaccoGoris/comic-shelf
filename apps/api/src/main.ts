@@ -26,6 +26,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule)
   const globalPrefix = 'api'
   app.setGlobalPrefix(globalPrefix)
+  app.set('trust proxy', true)
   app.use(cookieParser())
   app.enableCors({
     origin: (process.env.CORS_ORIGINS || 'http://localhost:4200').split(','),

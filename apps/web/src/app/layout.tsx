@@ -16,6 +16,7 @@ import {
   IconPlus,
   IconUsers,
   IconLogout,
+  IconDatabaseExport,
 } from '@tabler/icons-react'
 import { useAuth } from '../auth/auth-context'
 
@@ -62,6 +63,14 @@ export function Layout() {
             </Button>
             <Button variant="subtle" component={Link} to="/import">
               Import
+            </Button>
+            <Button
+              variant="subtle"
+              component={Link}
+              to="/backup"
+              leftSection={<IconDatabaseExport size={16} />}
+            >
+              Backup
             </Button>
             {user?.role === 'ADMIN' && (
               <Button
