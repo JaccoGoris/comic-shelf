@@ -42,6 +42,15 @@ enum CollectionType {
   WISHLIST
 }
 
+// ─── Site Settings ───────────────────────────────────────
+
+model SiteSettings {
+  id             Int    @id @default(1)
+  collectionName String @default("Comic Collection") @map("collection_name")
+
+  @@map("site_settings")
+}
+
 // ─── Auth ────────────────────────────────────────────────
 
 model User {

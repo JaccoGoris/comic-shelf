@@ -23,6 +23,8 @@ import type {
   SetupDto,
   CreateUserDto,
   BackupImportResultDto,
+  SiteSettingsDto,
+  UpdateSiteSettingsDto,
 } from '@comic-shelf/shared-types'
 
 const api = axios.create({
@@ -158,6 +160,18 @@ export async function importBackup(file: File): Promise<BackupImportResultDto> {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300000,
   })
+  return data
+}
+
+// ─── Settings ───────────────────────────────────────────
+
+export async function getSettings(): Promise<SiteSettingsDto> {
+  const { data } = await api.get('/settings')
+  return data
+}
+
+export async function updateSettings(dto: UpdateSiteSettingsDto): Promise<SiteSettingsDto> {
+  const { data } = await api.patch('/settings', dto)
   return data
 }
 

@@ -4,6 +4,8 @@ import {
   getComics,
   getPublishers,
   getSeries,
+  getSettings,
+  updateSettings,
   type ComicFilters,
 } from '../../../api/client'
 import type {
@@ -34,6 +36,7 @@ import {
   IconSearch,
   IconPlus,
   IconChevronDown,
+  IconPencil,
 } from '@tabler/icons-react'
 import { getErrorMessage } from '../../../utils/error'
 import { PAGE_SIZE } from '../../../utils/constants'
@@ -53,6 +56,9 @@ export function ComicsListPage() {
   const [series, setSeries] = useState<SeriesDto[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [collectionName, setCollectionName] = useState('Comic Collection')
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleInput, setTitleInput] = useState('')
   const [searchInput, setSearchInput] = useState(
     searchParams.get('search') ?? '',
   )
@@ -147,7 +153,39 @@ export function ComicsListPage() {
       .catch((err) => {
         console.error('Failed to get series', err)
       })
+    getSettings()
+      .then((s) => setCollectionName(s.collectionName))
+      .catch((err) => {
+        console.error('Failed to get settings', err)
+      })
   }, [])
+
+  const handleTitleEdit = () => {
+    setTitleInput(collectionName)
+    setEditingTitle(true)
+  }
+
+  const handleTitleSave = async () => {
+    const newName = titleInput.trim()
+    if (newName && newName !== collectionName) {
+      try {
+        const result = await updateSettings({ collectionName: newName })
+        setCollectionName(result.collectionName)
+      } catch {
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to update collection name.',
+          color: 'red',
+        })
+      }
+    }
+    setEditingTitle(false)
+  }
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleTitleSave()
+    if (e.key === 'Escape') setEditingTitle(false)
+  }
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams)
@@ -264,7 +302,28 @@ export function ComicsListPage() {
   return (
     <Container size="xl" py="md">
       <Group justify="space-between" align="center" mb="lg">
-        <Title order={1}>Comic Collection</Title>
+        {editingTitle ? (
+          <TextInput
+            value={titleInput}
+            onChange={(e) => setTitleInput(e.currentTarget.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={handleTitleKeyDown}
+            size="xl"
+            styles={{ input: { fontWeight: 700, fontSize: 'var(--mantine-h1-font-size)' } }}
+            data-autofocus
+            autoFocus
+            w={400}
+          />
+        ) : (
+          <Group
+            gap="xs"
+            onClick={handleTitleEdit}
+            style={{ cursor: 'pointer' }}
+          >
+            <Title order={1}>{collectionName}</Title>
+            <IconPencil size={18} style={{ opacity: 0.4 }} />
+          </Group>
+        )}
         <Group>
           <Button.Group>
             <Button

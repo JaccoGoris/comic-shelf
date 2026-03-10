@@ -333,6 +333,16 @@ export interface BackupImportResultDto {
   errors: string[]
 }
 
+// ─── Site Settings ──────────────────────────────────────
+
+export interface SiteSettingsDto {
+  collectionName: string
+}
+
+export interface UpdateSiteSettingsDto {
+  collectionName?: string
+}
+
 // ─── Create DTO ─────────────────────────────────────────
 
 export interface CreateComicDto {

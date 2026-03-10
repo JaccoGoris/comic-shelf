@@ -12,6 +12,7 @@ import { SharedModule } from '../shared/shared.module'
 import { AuthModule } from '../auth/auth.module'
 import { UsersModule } from '../users/users.module'
 import { BackupModule } from '../backup/backup.module'
+import { SettingsModule } from '../settings/settings.module'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { BackupModule } from '../backup/backup.module'
     ResourcesModule,
     MetronModule,
     BackupModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
