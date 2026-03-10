@@ -4,16 +4,12 @@ import {
   getComics,
   getPublishers,
   getSeries,
-  startMetronSync,
-  stopMetronSync,
-  getMetronSyncStatus,
   type ComicFilters,
 } from '../../../api/client'
 import type {
   ComicListItemDto,
   PublisherDto,
   SeriesDto,
-  MetronSyncStatusDto,
 } from '@comic-shelf/shared-types'
 import {
   Container,
@@ -22,7 +18,6 @@ import {
   Select,
   SimpleGrid,
   Text,
-  Badge,
   Group,
   Loader,
   Center,
@@ -30,9 +25,6 @@ import {
   Anchor,
   Divider,
   Button,
-  Progress,
-  Notification,
-  Tooltip,
   Menu,
   ActionIcon,
 } from '@mantine/core'
@@ -41,12 +33,10 @@ import { notifications } from '@mantine/notifications'
 import {
   IconSearch,
   IconPlus,
-  IconRefresh,
-  IconPlayerStop,
   IconChevronDown,
 } from '@tabler/icons-react'
 import { getErrorMessage } from '../../../utils/error'
-import { PAGE_SIZE, SYNC_POLL_INTERVAL_MS } from '../../../utils/constants'
+import { PAGE_SIZE } from '../../../utils/constants'
 import { ComicCard } from './comic-card'
 import { CreateComicModal } from '../../components/create-comic-modal'
 import { MetronAddModal } from '../metron-add'
@@ -66,9 +56,6 @@ export function ComicsListPage() {
   const [searchInput, setSearchInput] = useState(
     searchParams.get('search') ?? '',
   )
-  const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(null)
-  const [syncLoading, setSyncLoading] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
 
   const pageRef = useRef(1)
 
@@ -160,55 +147,7 @@ export function ComicsListPage() {
       .catch((err) => {
         console.error('Failed to get series', err)
       })
-    getMetronSyncStatus()
-      .then(setSyncStatus)
-      .catch((err) => {
-        console.error('Failed to get Metron sync status', err)
-      })
   }, [])
-
-  // Sync polling
-  useEffect(() => {
-    if (!syncStatus?.running) return
-    const id = setInterval(async () => {
-      try {
-        const status = await getMetronSyncStatus()
-        setSyncStatus(status)
-        if (!status.running) {
-          clearInterval(id)
-          fetchComics()
-        }
-      } catch {
-        clearInterval(id)
-      }
-    }, SYNC_POLL_INTERVAL_MS)
-    return () => clearInterval(id)
-  }, [syncStatus?.running, fetchComics])
-
-  const handleStartSync = async () => {
-    setSyncLoading(true)
-    setSyncError(null)
-    try {
-      setSyncStatus(await startMetronSync())
-    } catch (err: unknown) {
-      setSyncError(getErrorMessage(err, 'Failed to start sync'))
-    } finally {
-      setSyncLoading(false)
-    }
-  }
-
-  const handleStopSync = async () => {
-    try {
-      setSyncStatus(await stopMetronSync())
-    } catch (err: unknown) {
-      setSyncError(getErrorMessage(err, 'Failed to stop sync'))
-    }
-  }
-
-  const syncProgress =
-    syncStatus && syncStatus.total > 0
-      ? Math.round((syncStatus.processed / syncStatus.total) * 100)
-      : 0
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams)
@@ -350,72 +289,8 @@ export function ComicsListPage() {
               </Menu.Dropdown>
             </Menu>
           </Button.Group>
-          {syncStatus?.running ? (
-            <Button
-              leftSection={<IconPlayerStop size={16} />}
-              variant="light"
-              color="red"
-              onClick={handleStopSync}
-            >
-              Stop Sync
-            </Button>
-          ) : (
-            <Tooltip label="Enrich library with Metron data by UPC">
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                variant="light"
-                loading={syncLoading}
-                onClick={handleStartSync}
-              >
-                Metron Sync
-              </Button>
-            </Tooltip>
-          )}
         </Group>
       </Group>
-
-      {/* Sync error */}
-      {syncError && (
-        <Notification color="red" mb="md" onClose={() => setSyncError(null)}>
-          {syncError}
-        </Notification>
-      )}
-
-      {/* Sync progress */}
-      {syncStatus && (
-        <Stack gap="xs" mb="md">
-          <Group justify="space-between">
-            <Text size="sm" fw={500}>
-              {syncStatus.running
-                ? 'Metron Sync in progress…'
-                : 'Last Metron Sync'}
-            </Text>
-            <Group gap="xs">
-              <Badge color="green" variant="light" size="sm">
-                {syncStatus.found} enriched
-              </Badge>
-              <Badge color="gray" variant="light" size="sm">
-                {syncStatus.skipped} skipped
-              </Badge>
-              {syncStatus.failed > 0 && (
-                <Badge color="red" variant="light" size="sm">
-                  {syncStatus.failed} failed
-                </Badge>
-              )}
-            </Group>
-          </Group>
-          <Progress
-            value={syncProgress}
-            color="violet"
-            size="sm"
-            animated={syncStatus.running}
-          />
-          <Text size="xs" c="dimmed">
-            {syncStatus.processed} of {syncStatus.total} comics processed (
-            {syncProgress}%)
-          </Text>
-        </Stack>
-      )}
 
       {/* Filters */}
       <Group mb="md" grow wrap="wrap" align="flex-end">

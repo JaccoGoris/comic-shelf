@@ -3,6 +3,7 @@ import { Layout } from './layout'
 import { HomePage } from './pages/home'
 import { ComicsListPage } from './pages/comic-list/comics-list'
 import { ComicDetailPage } from './pages/comic-detail'
+import { MetronSyncPage } from './pages/metron-sync'
 import { LoginPage } from './pages/login'
 import { SetupPage } from './pages/setup'
 import { SettingsPage } from './pages/settings'
@@ -22,6 +23,7 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/comics" element={<ComicsListPage />} />
           <Route path="/comics/:id" element={<ComicDetailPage />} />
+          <Route path="/sync" element={<MetronSyncPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
