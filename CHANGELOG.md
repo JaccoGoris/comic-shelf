@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.2.0...v1.3.0) (2026-03-10)
+
+
+### Features
+
+* add create comic modal with split button on collection page ([0eae031](https://github.com/JaccoGoris/comic-shelf/commit/0eae03135a2a10d3eb5c80434bdb112b988f7c24))
+* add dedicated Metron sync page ([b33a8ca](https://github.com/JaccoGoris/comic-shelf/commit/b33a8cadf166b6469eb5bf1bb5b29204111c21d1))
+* add manual comic creation endpoint ([2766edf](https://github.com/JaccoGoris/comic-shelf/commit/2766edfaa9a15fcd1593066cf3403650ef1f4575))
+* make collection name editable ([dde31de](https://github.com/JaccoGoris/comic-shelf/commit/dde31def4d6d9cfffed9f9383f4ffa146e9c4c44))
+* move Metron add wizard into fullscreen modal ([3ba941d](https://github.com/JaccoGoris/comic-shelf/commit/3ba941d244a022ee1dc6577d8aaea24d13f510c6))
+* reworked add comic modal ([e0767d7](https://github.com/JaccoGoris/comic-shelf/commit/e0767d7a6a2c6c19aaf5aadee905f0a78f4ce27c))
+
 ## [1.2.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.1.5...v1.2.0) (2026-03-09)
 
 
