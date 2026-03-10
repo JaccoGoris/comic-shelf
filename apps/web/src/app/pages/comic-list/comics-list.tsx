@@ -49,10 +49,12 @@ import { getErrorMessage } from '../../../utils/error'
 import { PAGE_SIZE, SYNC_POLL_INTERVAL_MS } from '../../../utils/constants'
 import { ComicCard } from './comic-card'
 import { CreateComicModal } from '../../components/create-comic-modal'
+import { MetronAddModal } from '../metron-add'
 
 export function ComicsListPage() {
   const navigate = useNavigate()
   const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false)
+  const [metronModalOpened, { open: openMetronModal, close: closeMetronModal }] = useDisclosure(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [comics, setComics] = useState<ComicListItemDto[]>([])
   const [total, setTotal] = useState(0)
@@ -341,8 +343,7 @@ export function ComicsListPage() {
               <Menu.Dropdown>
                 <Menu.Item
                   leftSection={<IconSearch size={14} />}
-                  component={Link}
-                  to="/add"
+                  onClick={openMetronModal}
                 >
                   Add from Metron
                 </Menu.Item>
@@ -564,6 +565,11 @@ export function ComicsListPage() {
         opened={createModalOpened}
         onClose={closeCreateModal}
         onCreated={(comicId) => navigate(`/comics/${comicId}`)}
+      />
+      <MetronAddModal
+        opened={metronModalOpened}
+        onClose={closeMetronModal}
+        onImported={(comicId) => navigate(`/comics/${comicId}`)}
       />
     </Container>
   )

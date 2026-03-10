@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   searchMetron,
   getMetronIssue,
@@ -10,8 +9,7 @@ import type {
   MetronIssueDetailDto,
 } from '@comic-shelf/shared-types'
 import {
-  Container,
-  Title,
+  Modal,
   TextInput,
   Button,
   SimpleGrid,
@@ -27,6 +25,7 @@ import {
   Stack,
   Alert,
   Anchor,
+  Title,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import {
@@ -39,8 +38,13 @@ import {
 type Step = 'search' | 'results' | 'preview'
 type SearchMode = 'upc' | 'series'
 
-export function MetronAddPage() {
-  const navigate = useNavigate()
+interface MetronAddModalProps {
+  opened: boolean
+  onClose: () => void
+  onImported: (comicId: number) => void
+}
+
+export function MetronAddModal({ opened, onClose, onImported }: MetronAddModalProps) {
   const [step, setStep] = useState<Step>('search')
   const [searchMode, setSearchMode] = useState<SearchMode>('upc')
   const [upc, setUpc] = useState('')
@@ -118,7 +122,8 @@ export function MetronAddPage() {
         message: `"${detail.series.name} #${detail.number}" has been added to your collection.`,
         color: 'green',
       })
-      navigate(`/comics/${result.comicId}`)
+      onClose()
+      onImported(result.comicId)
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -148,12 +153,16 @@ export function MetronAddPage() {
     }
   }
 
-  return (
-    <Container size="lg" py="md">
-      <Title order={1} mb="lg">
-        Add Comic via Metron
-      </Title>
+  const handleClose = () => {
+    setStep('search')
+    setResults([])
+    setDetail(null)
+    setError(null)
+    onClose()
+  }
 
+  return (
+    <Modal opened={opened} onClose={handleClose} title="Add Comic via Metron" fullScreen>
       {error && (
         <Alert
           icon={<IconAlertCircle size={16} />}
@@ -336,7 +345,7 @@ export function MetronAddPage() {
           )}
         </>
       )}
-    </Container>
+    </Modal>
   )
 }
 
