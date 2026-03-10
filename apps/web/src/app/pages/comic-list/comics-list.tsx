@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   getComics,
   getPublishers,
@@ -33,20 +33,26 @@ import {
   Progress,
   Notification,
   Tooltip,
+  Menu,
+  ActionIcon,
 } from '@mantine/core'
-import { useIntersection } from '@mantine/hooks'
+import { useDisclosure, useIntersection } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import {
   IconSearch,
   IconPlus,
   IconRefresh,
   IconPlayerStop,
+  IconChevronDown,
 } from '@tabler/icons-react'
 import { getErrorMessage } from '../../../utils/error'
 import { PAGE_SIZE, SYNC_POLL_INTERVAL_MS } from '../../../utils/constants'
 import { ComicCard } from './comic-card'
+import { CreateComicModal } from '../../components/create-comic-modal'
 
 export function ComicsListPage() {
+  const navigate = useNavigate()
+  const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [comics, setComics] = useState<ComicListItemDto[]>([])
   const [total, setTotal] = useState(0)
@@ -319,13 +325,30 @@ export function ComicsListPage() {
       <Group justify="space-between" align="center" mb="lg">
         <Title order={1}>Comic Collection</Title>
         <Group>
-          <Button
-            component={Link}
-            to="/add"
-            leftSection={<IconPlus size={16} />}
-          >
-            Add via Metron
-          </Button>
+          <Button.Group>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={openCreateModal}
+            >
+              Create Comic
+            </Button>
+            <Menu position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon variant="filled" size={36} color="violet">
+                  <IconChevronDown size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconSearch size={14} />}
+                  component={Link}
+                  to="/add"
+                >
+                  Add from Metron
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Button.Group>
           {syncStatus?.running ? (
             <Button
               leftSection={<IconPlayerStop size={16} />}
@@ -520,7 +543,7 @@ export function ComicsListPage() {
         <Center py="xl">
           <Stack align="center" gap="xs">
             <Text c="dimmed">No comics found. Try adjusting filters or</Text>
-            <Anchor component={Link} to="/import">
+            <Anchor component={Link} to="/settings?tab=data">
               import your collection
             </Anchor>
           </Stack>
@@ -536,6 +559,12 @@ export function ComicsListPage() {
           <Loader size="sm" />
         </Center>
       )}
+
+      <CreateComicModal
+        opened={createModalOpened}
+        onClose={closeCreateModal}
+        onCreated={(comicId) => navigate(`/comics/${comicId}`)}
+      />
     </Container>
   )
 }
