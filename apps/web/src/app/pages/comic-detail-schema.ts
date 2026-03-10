@@ -1,19 +1,5 @@
 import { z } from 'zod'
 
-const CREATOR_ROLES = [
-  'WRITER',
-  'ARTIST',
-  'PENCILLER',
-  'INKER',
-  'COLORIST',
-  'COVER_ARTIST',
-  'LETTERER',
-  'EDITOR',
-  'CREATED_BY',
-] as const
-
-const GENRE_TYPES = ['GENRE', 'SUBGENRE'] as const
-
 const COLLECTION_TYPES = ['COLLECTION', 'WISHLIST'] as const
 
 export const comicFormSchema = z.object({
@@ -33,7 +19,7 @@ export const comicFormSchema = z.object({
   typeOfComic: z.string().nullable(),
   numberOfPages: z.number().int().positive().nullable(),
   printing: z.string().nullable(),
-  coverPriceCents: z.number().int().min(0).nullable(),
+  coverPrice: z.number().min(0).nullable(),
   coverPriceCurrency: z.string().nullable(),
   read: z.boolean(),
   preordered: z.boolean(),
@@ -44,7 +30,7 @@ export const comicFormSchema = z.object({
   loanedTo: z.string().nullable(),
   signedBy: z.string().nullable(),
   personalRating: z.string().nullable(),
-  purchasePriceCents: z.number().int().min(0).nullable(),
+  purchasePrice: z.number().min(0).nullable(),
   purchasePriceCurrency: z.string().nullable(),
   purchaseDate: z.string().nullable(),
   purchasedFrom: z.string().nullable(),
@@ -58,28 +44,19 @@ export const comicFormSchema = z.object({
   pageQuality: z.string().nullable(),
   publisherName: z.string().nullable(),
   seriesName: z.string().nullable(),
-  creators: z.array(
-    z.object({
-      name: z.string().min(1, 'Creator name is required'),
-      role: z.enum(CREATOR_ROLES),
-    }),
-  ),
-  characters: z.array(
-    z.object({
-      name: z.string().min(1, 'Character name is required'),
-    }),
-  ),
-  storyArcs: z.array(
-    z.object({
-      name: z.string().min(1, 'Story arc name is required'),
-    }),
-  ),
-  genres: z.array(
-    z.object({
-      name: z.string().min(1, 'Genre name is required'),
-      type: z.enum(GENRE_TYPES),
-    }),
-  ),
+  creatorsWriter: z.array(z.string()),
+  creatorsArtist: z.array(z.string()),
+  creatorsPenciller: z.array(z.string()),
+  creatorsInker: z.array(z.string()),
+  creatorsColorist: z.array(z.string()),
+  creatorsCoverArtist: z.array(z.string()),
+  creatorsLetterer: z.array(z.string()),
+  creatorsEditor: z.array(z.string()),
+  creatorsCreatedBy: z.array(z.string()),
+  characters: z.array(z.string()),
+  storyArcs: z.array(z.string()),
+  genres: z.array(z.string()),
+  subgenres: z.array(z.string()),
 })
 
 export type ComicFormValues = z.infer<typeof comicFormSchema>

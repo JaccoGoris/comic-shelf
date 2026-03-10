@@ -252,44 +252,48 @@ export class MetronService {
 
     // ── Credits / Creators ──
     for (const credit of detail.credits) {
-      const creatorRecord = await this.upsertService.upsertCreator(
-        credit.creator,
-      )
-      for (const role of credit.role) {
-        const mappedRole = mapMetronRole(role.name)
-        if (!mappedRole) continue
+      const creatorNames = splitNames(credit.creator)
+      for (const creatorName of creatorNames) {
+        const creatorRecord = await this.upsertService.upsertCreator(creatorName)
+        for (const role of credit.role) {
+          const mappedRole = mapMetronRole(role.name)
+          if (!mappedRole) continue
 
-        await this.prisma.comicCreator.upsert({
-          where: {
-            comicId_creatorId_role: {
+          await this.prisma.comicCreator.upsert({
+            where: {
+              comicId_creatorId_role: {
+                comicId: comic.id,
+                creatorId: creatorRecord.id,
+                role: mappedRole,
+              },
+            },
+            create: {
               comicId: comic.id,
               creatorId: creatorRecord.id,
               role: mappedRole,
             },
-          },
-          create: {
-            comicId: comic.id,
-            creatorId: creatorRecord.id,
-            role: mappedRole,
-          },
-          update: {},
-        })
+            update: {},
+          })
+        }
       }
     }
 
     // ── Characters ──
     for (const char of detail.characters) {
-      const character = await this.upsertService.upsertCharacter(char.name)
-      await this.prisma.comicCharacter.upsert({
-        where: {
-          comicId_characterId: {
-            comicId: comic.id,
-            characterId: character.id,
+      const charNames = splitNames(char.name)
+      for (const charName of charNames) {
+        const character = await this.upsertService.upsertCharacter(charName)
+        await this.prisma.comicCharacter.upsert({
+          where: {
+            comicId_characterId: {
+              comicId: comic.id,
+              characterId: character.id,
+            },
           },
-        },
-        create: { comicId: comic.id, characterId: character.id },
-        update: {},
-      })
+          create: { comicId: comic.id, characterId: character.id },
+          update: {},
+        })
+      }
     }
 
     // ── Genres (from series) ──
@@ -623,37 +627,52 @@ export class MetronService {
 
       // Upsert creators
       for (const credit of detail.credits) {
-        const creatorRecord = await this.upsertService.upsertCreator(
-          credit.creator,
-        )
-        for (const role of credit.role) {
-          const mappedRole = mapMetronRole(role.name)
-          if (!mappedRole) continue
-          await this.prisma.comicCreator.upsert({
-            where: {
-              comicId_creatorId_role: {
+        const creatorNames = credit.creator
+          .split(/\s*&\s*/)
+          .map((n) => n.trim())
+          .filter(Boolean)
+        for (const creatorName of creatorNames) {
+          const creatorRecord =
+            await this.upsertService.upsertCreator(creatorName)
+          for (const role of credit.role) {
+            const mappedRole = mapMetronRole(role.name)
+            if (!mappedRole) continue
+            await this.prisma.comicCreator.upsert({
+              where: {
+                comicId_creatorId_role: {
+                  comicId,
+                  creatorId: creatorRecord.id,
+                  role: mappedRole,
+                },
+              },
+              create: {
                 comicId,
                 creatorId: creatorRecord.id,
                 role: mappedRole,
               },
-            },
-            create: { comicId, creatorId: creatorRecord.id, role: mappedRole },
-            update: {},
-          })
+              update: {},
+            })
+          }
         }
       }
       if (detail.credits.length > 0) updatedFields.push('creators')
 
       // Upsert characters
       for (const char of detail.characters) {
-        const character = await this.upsertService.upsertCharacter(char.name)
-        await this.prisma.comicCharacter.upsert({
-          where: {
-            comicId_characterId: { comicId, characterId: character.id },
-          },
-          create: { comicId, characterId: character.id },
-          update: {},
-        })
+        const charNames = char.name
+          .split(/\s*&\s*/)
+          .map((n) => n.trim())
+          .filter(Boolean)
+        for (const charName of charNames) {
+          const character = await this.upsertService.upsertCharacter(charName)
+          await this.prisma.comicCharacter.upsert({
+            where: {
+              comicId_characterId: { comicId, characterId: character.id },
+            },
+            create: { comicId, characterId: character.id },
+            update: {},
+          })
+        }
       }
       if (detail.characters.length > 0) updatedFields.push('characters')
 
@@ -734,6 +753,10 @@ export class MetronService {
 }
 
 // ─── Helpers ─────────────────────────────────────────────
+
+function splitNames(str: string): string[] {
+  return str.split(/\s*&\s*/).map((n) => n.trim()).filter(Boolean)
+}
 
 function mapMetronRole(roleName: string): CreatorRole | null {
   const key = roleName.toLowerCase().trim()

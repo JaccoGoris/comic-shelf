@@ -333,6 +333,41 @@ export interface BackupImportResultDto {
   errors: string[]
 }
 
+// ─── Dashboard Stats ─────────────────────────────────────
+
+export interface NameCountItem { name: string; count: number }
+export interface YearCountItem { year: number; count: number }
+export interface MonthCountItem { month: string; count: number }
+
+export interface RecentComicDto {
+  id: number
+  title: string
+  issueNumber: string | null
+  coverImageUrl: string | null
+  publisher: string | null
+  series: string | null
+  dateAdded: string
+}
+
+export interface DashboardStatsDto {
+  totalComics: number
+  totalRead: number
+  totalUnread: number
+  readPercentage: number
+  collectionCount: number
+  wishlistCount: number
+  totalCoverValueCents: number
+  totalPurchaseSpendCents: number
+  publisherCount: number
+  seriesCount: number
+  comicsByPublisher: NameCountItem[]
+  comicsBySeries: NameCountItem[]
+  comicsByYear: YearCountItem[]
+  comicsByGenre: NameCountItem[]
+  comicsAddedPerMonth: MonthCountItem[]
+  recentlyAdded: RecentComicDto[]
+}
+
 // ─── Site Settings ──────────────────────────────────────
 
 export interface SiteSettingsDto {

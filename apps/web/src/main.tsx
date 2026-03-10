@@ -8,6 +8,7 @@ import { ModalsProvider } from '@mantine/modals'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 import '@mantine/dropzone/styles.css'
+import '@mantine/charts/styles.css'
 
 import App from './app/app'
 import { AuthProvider } from './auth/auth-context'

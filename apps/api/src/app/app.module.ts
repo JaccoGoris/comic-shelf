@@ -13,6 +13,7 @@ import { AuthModule } from '../auth/auth.module'
 import { UsersModule } from '../users/users.module'
 import { BackupModule } from '../backup/backup.module'
 import { SettingsModule } from '../settings/settings.module'
+import { StatsModule } from '../stats/stats.module'
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SettingsModule } from '../settings/settings.module'
     MetronModule,
     BackupModule,
     SettingsModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

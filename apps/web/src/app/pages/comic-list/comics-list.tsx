@@ -45,8 +45,14 @@ import { MetronAddModal } from '../metron-add'
 
 export function ComicsListPage() {
   const navigate = useNavigate()
-  const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false)
-  const [metronModalOpened, { open: openMetronModal, close: closeMetronModal }] = useDisclosure(false)
+  const [
+    createModalOpened,
+    { open: openCreateModal, close: closeCreateModal },
+  ] = useDisclosure(false)
+  const [
+    metronModalOpened,
+    { open: openMetronModal, close: closeMetronModal },
+  ] = useDisclosure(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [comics, setComics] = useState<ComicListItemDto[]>([])
   const [total, setTotal] = useState(0)
@@ -308,7 +314,12 @@ export function ComicsListPage() {
             onBlur={handleTitleSave}
             onKeyDown={handleTitleKeyDown}
             size="xl"
-            styles={{ input: { fontWeight: 700, fontSize: 'var(--mantine-h1-font-size)' } }}
+            styles={{
+              input: {
+                fontWeight: 700,
+                fontSize: 'var(--mantine-h1-font-size)',
+              },
+            }}
             data-autofocus
             autoFocus
             w={400}
@@ -329,7 +340,7 @@ export function ComicsListPage() {
               leftSection={<IconPlus size={16} />}
               onClick={openCreateModal}
             >
-              Create Comic
+              Add Comic
             </Button>
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>

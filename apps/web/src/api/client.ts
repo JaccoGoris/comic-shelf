@@ -25,6 +25,7 @@ import type {
   BackupImportResultDto,
   SiteSettingsDto,
   UpdateSiteSettingsDto,
+  DashboardStatsDto,
 } from '@comic-shelf/shared-types'
 
 const api = axios.create({
@@ -172,6 +173,13 @@ export async function getSettings(): Promise<SiteSettingsDto> {
 
 export async function updateSettings(dto: UpdateSiteSettingsDto): Promise<SiteSettingsDto> {
   const { data } = await api.patch('/settings', dto)
+  return data
+}
+
+// ─── Stats ───────────────────────────────────────────────
+
+export async function getStats(): Promise<DashboardStatsDto> {
+  const { data } = await api.get('/stats')
   return data
 }
 

@@ -101,7 +101,7 @@ export function CreateComicModal({
     <Modal
       opened={opened}
       onClose={handleClose}
-      title="Create Comic"
+      title="Add Comic"
       size="lg"
       centered
       fullScreen={isMobile}
@@ -148,7 +148,7 @@ export function CreateComicModal({
             mt="sm"
             disabled={!title.trim()}
           >
-            Create Comic
+            Add Comic
           </Button>
         </Stack>
       </form>

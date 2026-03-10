@@ -13,7 +13,12 @@ import {
   getStoryArcs,
 } from '../../api/client'
 import { TypeaheadField } from '../components/typeahead-field'
-import type { ComicDetailDto, UpdateComicDto } from '@comic-shelf/shared-types'
+import { TagsInputField } from '../components/tags-input-field'
+import type {
+  ComicDetailDto,
+  UpdateComicDto,
+  CreatorRole,
+} from '@comic-shelf/shared-types'
 import placeholderImg from '../../assets/comic-card-placeholder.webp'
 import { useForm } from '@mantine/form'
 import { zodResolver } from 'mantine-form-zod-resolver'
@@ -32,7 +37,6 @@ import {
   Image,
   Paper,
   SimpleGrid,
-  ActionIcon,
   Loader,
   Center,
   Alert,
@@ -48,10 +52,48 @@ import {
   IconRefresh,
   IconDeviceFloppy,
   IconPlus,
-  IconX,
 } from '@tabler/icons-react'
 
+const CREATOR_ROLE_TO_FIELD = {
+  WRITER: 'creatorsWriter',
+  ARTIST: 'creatorsArtist',
+  PENCILLER: 'creatorsPenciller',
+  INKER: 'creatorsInker',
+  COLORIST: 'creatorsColorist',
+  COVER_ARTIST: 'creatorsCoverArtist',
+  LETTERER: 'creatorsLetterer',
+  EDITOR: 'creatorsEditor',
+  CREATED_BY: 'creatorsCreatedBy',
+} as const
+
+type CreatorField = (typeof CREATOR_ROLE_TO_FIELD)[CreatorRole]
+
+const ALL_ROLES = Object.keys(CREATOR_ROLE_TO_FIELD) as CreatorRole[]
+
+const ROLE_OPTIONS = [
+  { value: 'WRITER', label: 'Writer' },
+  { value: 'ARTIST', label: 'Artist' },
+  { value: 'PENCILLER', label: 'Penciller' },
+  { value: 'INKER', label: 'Inker' },
+  { value: 'COLORIST', label: 'Colorist' },
+  { value: 'COVER_ARTIST', label: 'Cover Artist' },
+  { value: 'LETTERER', label: 'Letterer' },
+  { value: 'EDITOR', label: 'Editor' },
+  { value: 'CREATED_BY', label: 'Created By' },
+]
+
+function getRoleLabel(role: CreatorRole): string {
+  return ROLE_OPTIONS.find((r) => r.value === role)?.label ?? role
+}
+
 function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
+  const creatorsByRole = Object.fromEntries(
+    ALL_ROLES.map((role) => [
+      CREATOR_ROLE_TO_FIELD[role],
+      comic.creators.filter((c) => c.role === role).map((c) => c.creator.name),
+    ]),
+  ) as Record<CreatorField, string[]>
+
   return {
     title: comic.title,
     synopsis: comic.synopsis ?? null,
@@ -69,7 +111,8 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     typeOfComic: comic.typeOfComic ?? null,
     numberOfPages: comic.numberOfPages ?? null,
     printing: comic.printing ?? null,
-    coverPriceCents: comic.coverPriceCents ?? null,
+    coverPrice:
+      comic.coverPriceCents != null ? comic.coverPriceCents / 100 : null,
     coverPriceCurrency: comic.coverPriceCurrency ?? null,
     read: comic.read,
     preordered: comic.preordered,
@@ -80,7 +123,10 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     loanedTo: comic.loanedTo ?? null,
     signedBy: comic.signedBy ?? null,
     personalRating: comic.personalRating ?? null,
-    purchasePriceCents: comic.purchasePriceCents ?? null,
+    purchasePrice:
+      comic.purchasePriceCents != null
+        ? comic.purchasePriceCents / 100
+        : null,
     purchasePriceCurrency: comic.purchasePriceCurrency ?? null,
     purchaseDate: comic.purchaseDate
       ? comic.purchaseDate.substring(0, 10)
@@ -96,17 +142,23 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     pageQuality: comic.pageQuality ?? null,
     publisherName: comic.publisher?.name ?? null,
     seriesName: comic.series?.name ?? null,
-    creators: comic.creators.map((c) => ({
-      name: c.creator.name,
-      role: c.role,
-    })),
-    characters: comic.characters.map((c) => ({ name: c.name })),
-    storyArcs: comic.storyArcs.map((a) => ({ name: a.name })),
-    genres: comic.genres.map((g) => ({ name: g.genre.name, type: g.type })),
+    ...creatorsByRole,
+    characters: comic.characters.map((c) => c.name),
+    storyArcs: comic.storyArcs.map((a) => a.name),
+    genres: comic.genres.filter((g) => g.type === 'GENRE').map((g) => g.genre.name),
+    subgenres: comic.genres
+      .filter((g) => g.type === 'SUBGENRE')
+      .map((g) => g.genre.name),
   }
 }
 
 function formValuesToDto(values: ComicFormValues): UpdateComicDto {
+  const creators = ALL_ROLES.flatMap((role) =>
+    (values[CREATOR_ROLE_TO_FIELD[role] as CreatorField] as string[]).map(
+      (name) => ({ name, role }),
+    ),
+  )
+
   return {
     title: values.title,
     synopsis: values.synopsis,
@@ -124,7 +176,8 @@ function formValuesToDto(values: ComicFormValues): UpdateComicDto {
     typeOfComic: values.typeOfComic,
     numberOfPages: values.numberOfPages,
     printing: values.printing,
-    coverPriceCents: values.coverPriceCents,
+    coverPriceCents:
+      values.coverPrice != null ? Math.round(values.coverPrice * 100) : null,
     coverPriceCurrency: values.coverPriceCurrency,
     read: values.read,
     preordered: values.preordered,
@@ -135,7 +188,10 @@ function formValuesToDto(values: ComicFormValues): UpdateComicDto {
     loanedTo: values.loanedTo,
     signedBy: values.signedBy,
     personalRating: values.personalRating,
-    purchasePriceCents: values.purchasePriceCents,
+    purchasePriceCents:
+      values.purchasePrice != null
+        ? Math.round(values.purchasePrice * 100)
+        : null,
     purchasePriceCurrency: values.purchasePriceCurrency,
     purchaseDate: values.purchaseDate,
     purchasedFrom: values.purchasedFrom,
@@ -149,10 +205,13 @@ function formValuesToDto(values: ComicFormValues): UpdateComicDto {
     pageQuality: values.pageQuality,
     publisher: values.publisherName ? { name: values.publisherName } : null,
     series: values.seriesName ? { name: values.seriesName } : null,
-    creators: values.creators,
-    characters: values.characters,
-    storyArcs: values.storyArcs,
-    genres: values.genres,
+    creators,
+    characters: values.characters.map((name) => ({ name })),
+    storyArcs: values.storyArcs.map((name) => ({ name })),
+    genres: [
+      ...values.genres.map((name) => ({ name, type: 'GENRE' as const })),
+      ...values.subgenres.map((name) => ({ name, type: 'SUBGENRE' as const })),
+    ],
   }
 }
 
@@ -169,22 +228,13 @@ const fetchStoryArcNames = (s?: string) =>
 const fetchGenreNames = (s?: string) =>
   getGenres(s).then((r) => r.map((i) => i.name))
 
-const ROLE_OPTIONS = [
-  { value: 'WRITER', label: 'Writer' },
-  { value: 'ARTIST', label: 'Artist' },
-  { value: 'PENCILLER', label: 'Penciller' },
-  { value: 'INKER', label: 'Inker' },
-  { value: 'COLORIST', label: 'Colorist' },
-  { value: 'COVER_ARTIST', label: 'Cover Artist' },
-  { value: 'LETTERER', label: 'Letterer' },
-  { value: 'EDITOR', label: 'Editor' },
-  { value: 'CREATED_BY', label: 'Created By' },
-]
-
-const GENRE_TYPE_OPTIONS = [
-  { value: 'GENRE', label: 'Genre' },
-  { value: 'SUBGENRE', label: 'Subgenre' },
-]
+function getInitialVisibleRoles(vals: ComicFormValues): CreatorRole[] {
+  return ALL_ROLES.filter(
+    (role) =>
+      (vals[CREATOR_ROLE_TO_FIELD[role] as CreatorField] as string[]).length >
+      0,
+  )
+}
 
 export function ComicDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -194,6 +244,8 @@ export function ComicDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [visibleRoles, setVisibleRoles] = useState<CreatorRole[]>([])
+  const [roleToAdd, setRoleToAdd] = useState<string | null>(null)
 
   const form = useForm<ComicFormValues>({
     mode: 'uncontrolled',
@@ -215,7 +267,7 @@ export function ComicDetailPage() {
       typeOfComic: null,
       numberOfPages: null,
       printing: null,
-      coverPriceCents: null,
+      coverPrice: null,
       coverPriceCurrency: null,
       read: false,
       preordered: false,
@@ -226,7 +278,7 @@ export function ComicDetailPage() {
       loanedTo: null,
       signedBy: null,
       personalRating: null,
-      purchasePriceCents: null,
+      purchasePrice: null,
       purchasePriceCurrency: null,
       purchaseDate: null,
       purchasedFrom: null,
@@ -240,12 +292,28 @@ export function ComicDetailPage() {
       pageQuality: null,
       publisherName: null,
       seriesName: null,
-      creators: [],
+      creatorsWriter: [],
+      creatorsArtist: [],
+      creatorsPenciller: [],
+      creatorsInker: [],
+      creatorsColorist: [],
+      creatorsCoverArtist: [],
+      creatorsLetterer: [],
+      creatorsEditor: [],
+      creatorsCreatedBy: [],
       characters: [],
       storyArcs: [],
       genres: [],
+      subgenres: [],
     },
   })
+
+  const applyComicToForm = (data: ComicDetailDto) => {
+    const vals = comicToFormValues(data)
+    form.setValues(vals)
+    form.resetDirty(vals)
+    setVisibleRoles(getInitialVisibleRoles(vals))
+  }
 
   useEffect(() => {
     if (!id) return
@@ -253,8 +321,7 @@ export function ComicDetailPage() {
     getComic(parseInt(id, 10))
       .then((data) => {
         setComic(data)
-        form.setValues(comicToFormValues(data))
-        form.resetDirty(comicToFormValues(data))
+        applyComicToForm(data)
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -268,8 +335,7 @@ export function ComicDetailPage() {
       const dto = formValuesToDto(values)
       const updated = await updateComic(comic.id, dto)
       setComic(updated)
-      form.setValues(comicToFormValues(updated))
-      form.resetDirty(comicToFormValues(updated))
+      applyComicToForm(updated)
       notifications.show({
         title: 'Saved',
         message: 'Comic updated successfully.',
@@ -289,8 +355,7 @@ export function ComicDetailPage() {
             })
             const refreshed = await getComic(updated.id)
             setComic(refreshed)
-            form.setValues(comicToFormValues(refreshed))
-            form.resetDirty(comicToFormValues(refreshed))
+            applyComicToForm(refreshed)
           } else if (result.status === 'skipped') {
             notifications.show({
               title: 'Metron sync skipped',
@@ -364,8 +429,7 @@ export function ComicDetailPage() {
         })
         const updated = await getComic(comic.id)
         setComic(updated)
-        form.setValues(comicToFormValues(updated))
-        form.resetDirty(comicToFormValues(updated))
+        applyComicToForm(updated)
       } else if (result.status === 'skipped') {
         notifications.show({
           title: 'Sync skipped',
@@ -415,6 +479,10 @@ export function ComicDetailPage() {
       </Container>
     )
   }
+
+  const availableRolesToAdd = ROLE_OPTIONS.filter(
+    (r) => !visibleRoles.includes(r.value as CreatorRole),
+  )
 
   return (
     <Container size="lg" py="md">
@@ -623,10 +691,13 @@ export function ComicDetailPage() {
               />
               <Group grow>
                 <NumberInput
-                  label="Cover Price (cents)"
-                  placeholder="Price in cents"
-                  key={form.key('coverPriceCents')}
-                  {...form.getInputProps('coverPriceCents')}
+                  label="Cover Price"
+                  placeholder="0.00"
+                  decimalScale={2}
+                  fixedDecimalScale
+                  prefix="$"
+                  key={form.key('coverPrice')}
+                  {...form.getInputProps('coverPrice')}
                 />
                 <TextInput
                   label="Currency"
@@ -657,10 +728,13 @@ export function ComicDetailPage() {
               />
               <Group grow>
                 <NumberInput
-                  label="Purchase Price (cents)"
-                  placeholder="Price in cents"
-                  key={form.key('purchasePriceCents')}
-                  {...form.getInputProps('purchasePriceCents')}
+                  label="Purchase Price"
+                  placeholder="0.00"
+                  decimalScale={2}
+                  fixedDecimalScale
+                  prefix="$"
+                  key={form.key('purchasePrice')}
+                  {...form.getInputProps('purchasePrice')}
                 />
                 <TextInput
                   label="Currency"
@@ -740,185 +814,102 @@ export function ComicDetailPage() {
 
         {/* Creators */}
         <Paper withBorder p="md" mb="lg" radius="md">
-          <Group justify="space-between" mb="sm">
-            <Title order={3}>Creators</Title>
-            <Button
-              variant="light"
-              size="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={() =>
-                form.insertListItem('creators', {
-                  name: '',
-                  role: 'WRITER',
-                })
-              }
-            >
-              Add Creator
-            </Button>
-          </Group>
+          <Title order={3} mb="sm">
+            Creators
+          </Title>
           <Stack gap="xs">
-            {form.getValues().creators.map((_, index) => (
-              <Group key={index} wrap="nowrap">
-                <TypeaheadField
-                  placeholder="Creator name"
-                  style={{ flex: 1 }}
-                  fetchOptions={fetchCreatorNames}
-                  key={form.key(`creators.${index}.name`)}
-                  {...form.getInputProps(`creators.${index}.name`)}
-                />
-                <Select
-                  placeholder="Role"
-                  data={ROLE_OPTIONS}
-                  w={160}
-                  key={form.key(`creators.${index}.role`)}
-                  {...form.getInputProps(`creators.${index}.role`)}
-                />
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={() => form.removeListItem('creators', index)}
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              </Group>
+            {visibleRoles.map((role) => (
+              <TagsInputField
+                key={form.key(CREATOR_ROLE_TO_FIELD[role])}
+                label={getRoleLabel(role)}
+                placeholder="Type a name..."
+                fetchOptions={fetchCreatorNames}
+                {...form.getInputProps(CREATOR_ROLE_TO_FIELD[role])}
+              />
             ))}
-            {form.getValues().creators.length === 0 && (
+            {visibleRoles.length === 0 && availableRolesToAdd.length > 0 && (
               <Text size="sm" c="dimmed">
-                No creators added.
+                No creators added. Use the dropdown below to add a role.
               </Text>
+            )}
+            {availableRolesToAdd.length > 0 && (
+              <Group gap="xs" mt={visibleRoles.length > 0 ? 'xs' : 0}>
+                <Select
+                  placeholder="Add role..."
+                  data={availableRolesToAdd}
+                  value={roleToAdd}
+                  onChange={setRoleToAdd}
+                  clearable
+                  w={180}
+                />
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconPlus size={14} />}
+                  disabled={!roleToAdd}
+                  onClick={() => {
+                    if (roleToAdd) {
+                      setVisibleRoles((prev) => [
+                        ...prev,
+                        roleToAdd as CreatorRole,
+                      ])
+                      setRoleToAdd(null)
+                    }
+                  }}
+                >
+                  Add Role
+                </Button>
+              </Group>
             )}
           </Stack>
         </Paper>
 
         {/* Characters */}
         <Paper withBorder p="md" mb="lg" radius="md">
-          <Group justify="space-between" mb="sm">
-            <Title order={3}>Characters</Title>
-            <Button
-              variant="light"
-              size="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={() => form.insertListItem('characters', { name: '' })}
-            >
-              Add Character
-            </Button>
-          </Group>
-          <Stack gap="xs">
-            {form.getValues().characters.map((_, index) => (
-              <Group key={index} wrap="nowrap">
-                <TypeaheadField
-                  placeholder="Character name"
-                  style={{ flex: 1 }}
-                  fetchOptions={fetchCharacterNames}
-                  key={form.key(`characters.${index}.name`)}
-                  {...form.getInputProps(`characters.${index}.name`)}
-                />
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={() => form.removeListItem('characters', index)}
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              </Group>
-            ))}
-            {form.getValues().characters.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No characters added.
-              </Text>
-            )}
-          </Stack>
+          <Title order={3} mb="sm">
+            Characters
+          </Title>
+          <TagsInputField
+            placeholder="Type a character name..."
+            fetchOptions={fetchCharacterNames}
+            key={form.key('characters')}
+            {...form.getInputProps('characters')}
+          />
         </Paper>
 
         {/* Story Arcs */}
         <Paper withBorder p="md" mb="lg" radius="md">
-          <Group justify="space-between" mb="sm">
-            <Title order={3}>Story Arcs</Title>
-            <Button
-              variant="light"
-              size="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={() => form.insertListItem('storyArcs', { name: '' })}
-            >
-              Add Story Arc
-            </Button>
-          </Group>
-          <Stack gap="xs">
-            {form.getValues().storyArcs.map((_, index) => (
-              <Group key={index} wrap="nowrap">
-                <TypeaheadField
-                  placeholder="Story arc name"
-                  style={{ flex: 1 }}
-                  fetchOptions={fetchStoryArcNames}
-                  key={form.key(`storyArcs.${index}.name`)}
-                  {...form.getInputProps(`storyArcs.${index}.name`)}
-                />
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={() => form.removeListItem('storyArcs', index)}
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              </Group>
-            ))}
-            {form.getValues().storyArcs.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No story arcs added.
-              </Text>
-            )}
-          </Stack>
+          <Title order={3} mb="sm">
+            Story Arcs
+          </Title>
+          <TagsInputField
+            placeholder="Type a story arc name..."
+            fetchOptions={fetchStoryArcNames}
+            key={form.key('storyArcs')}
+            {...form.getInputProps('storyArcs')}
+          />
         </Paper>
 
         {/* Genres */}
         <Paper withBorder p="md" mb="lg" radius="md">
-          <Group justify="space-between" mb="sm">
-            <Title order={3}>Genres</Title>
-            <Button
-              variant="light"
-              size="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={() =>
-                form.insertListItem('genres', {
-                  name: '',
-                  type: 'GENRE',
-                })
-              }
-            >
-              Add Genre
-            </Button>
-          </Group>
+          <Title order={3} mb="sm">
+            Genres
+          </Title>
           <Stack gap="xs">
-            {form.getValues().genres.map((_, index) => (
-              <Group key={index} wrap="nowrap">
-                <TypeaheadField
-                  placeholder="Genre name"
-                  style={{ flex: 1 }}
-                  fetchOptions={fetchGenreNames}
-                  key={form.key(`genres.${index}.name`)}
-                  {...form.getInputProps(`genres.${index}.name`)}
-                />
-                <Select
-                  placeholder="Type"
-                  data={GENRE_TYPE_OPTIONS}
-                  w={130}
-                  key={form.key(`genres.${index}.type`)}
-                  {...form.getInputProps(`genres.${index}.type`)}
-                />
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={() => form.removeListItem('genres', index)}
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              </Group>
-            ))}
-            {form.getValues().genres.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No genres added.
-              </Text>
-            )}
+            <TagsInputField
+              label="Genres"
+              placeholder="Type a genre..."
+              fetchOptions={fetchGenreNames}
+              key={form.key('genres')}
+              {...form.getInputProps('genres')}
+            />
+            <TagsInputField
+              label="Subgenres"
+              placeholder="Type a subgenre..."
+              fetchOptions={fetchGenreNames}
+              key={form.key('subgenres')}
+              {...form.getInputProps('subgenres')}
+            />
           </Stack>
         </Paper>
 
