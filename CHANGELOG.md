@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.3.0...v1.4.0) (2026-03-10)
+
+
+### Features
+
+* improved comic editing ([1b9c846](https://github.com/JaccoGoris/comic-shelf/commit/1b9c84639c26d32debed0253ef470a6e5817ad0f))
+* improved editing experiened with typeahead tag lists and added a rudementary dashboard ([640c575](https://github.com/JaccoGoris/comic-shelf/commit/640c5754f474ff0b5245457ed84731cce6459044))
+
 ## [1.3.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.2.0...v1.3.0) (2026-03-10)
 
 
