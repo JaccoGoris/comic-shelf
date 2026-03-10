@@ -294,6 +294,33 @@ export class ComicsService {
       throw new NotFoundException(`Comic with id ${id} not found`)
     }
 
+    const oldPublisherId = dto.publisher !== undefined ? (comic.publisherId ?? undefined) : undefined
+    const oldSeriesId = dto.series !== undefined ? (comic.seriesId ?? undefined) : undefined
+
+    const [oldCreatorIds, oldCharacterIds, oldStoryArcIds, oldGenreIds] =
+      await Promise.all([
+        dto.creators !== undefined
+          ? this.prisma.comicCreator
+              .findMany({ where: { comicId: id }, select: { creatorId: true } })
+              .then((r) => r.map((c) => c.creatorId))
+          : Promise.resolve(undefined),
+        dto.characters !== undefined
+          ? this.prisma.comicCharacter
+              .findMany({ where: { comicId: id }, select: { characterId: true } })
+              .then((r) => r.map((c) => c.characterId))
+          : Promise.resolve(undefined),
+        dto.storyArcs !== undefined
+          ? this.prisma.comicStoryArc
+              .findMany({ where: { comicId: id }, select: { storyArcId: true } })
+              .then((r) => r.map((a) => a.storyArcId))
+          : Promise.resolve(undefined),
+        dto.genres !== undefined
+          ? this.prisma.comicGenre
+              .findMany({ where: { comicId: id }, select: { genreId: true } })
+              .then((r) => r.map((g) => g.genreId))
+          : Promise.resolve(undefined),
+      ])
+
     const scalarData: Prisma.ComicUpdateInput = {}
 
     // Scalar fields
@@ -429,11 +456,95 @@ export class ComicsService {
       }
     })
 
+    await this.cleanupOrphans({
+      publisherIds: oldPublisherId !== undefined ? [oldPublisherId] : undefined,
+      seriesIds: oldSeriesId !== undefined ? [oldSeriesId] : undefined,
+      creatorIds: oldCreatorIds,
+      characterIds: oldCharacterIds,
+      storyArcIds: oldStoryArcIds,
+      genreIds: oldGenreIds,
+    })
+
     return this.findOne(id)
   }
 
   async remove(id: number) {
+    const comic = await this.prisma.comic.findUnique({
+      where: { id },
+      include: {
+        creators: { select: { creatorId: true } },
+        characters: { select: { characterId: true } },
+        storyArcs: { select: { storyArcId: true } },
+        genres: { select: { genreId: true } },
+      },
+    })
+    if (!comic) return
+
+    const creatorIds = comic.creators.map((c) => c.creatorId)
+    const characterIds = comic.characters.map((c) => c.characterId)
+    const storyArcIds = comic.storyArcs.map((a) => a.storyArcId)
+    const genreIds = comic.genres.map((g) => g.genreId)
+    const publisherId = comic.publisherId ?? undefined
+    const seriesId = comic.seriesId ?? undefined
+
     await this.prisma.comic.delete({ where: { id } })
+
+    await this.cleanupOrphans({
+      publisherIds: publisherId !== undefined ? [publisherId] : undefined,
+      seriesIds: seriesId !== undefined ? [seriesId] : undefined,
+      creatorIds,
+      characterIds,
+      storyArcIds,
+      genreIds,
+    })
+  }
+
+  private async cleanupOrphans(opts: {
+    publisherIds?: number[]
+    seriesIds?: number[]
+    creatorIds?: number[]
+    characterIds?: number[]
+    storyArcIds?: number[]
+    genreIds?: number[]
+  }) {
+    // These four are independent — run in parallel
+    await Promise.all([
+      opts.creatorIds?.length
+        ? this.prisma.creator.deleteMany({
+            where: { id: { in: opts.creatorIds }, comics: { none: {} } },
+          })
+        : Promise.resolve(),
+      opts.characterIds?.length
+        ? this.prisma.character.deleteMany({
+            where: { id: { in: opts.characterIds }, comics: { none: {} } },
+          })
+        : Promise.resolve(),
+      opts.storyArcIds?.length
+        ? this.prisma.storyArc.deleteMany({
+            where: { id: { in: opts.storyArcIds }, comics: { none: {} } },
+          })
+        : Promise.resolve(),
+      opts.genreIds?.length
+        ? this.prisma.genre.deleteMany({
+            where: { id: { in: opts.genreIds }, comics: { none: {} } },
+          })
+        : Promise.resolve(),
+    ])
+    // Series before publisher (publisher check includes series: { none: {} })
+    if (opts.seriesIds?.length) {
+      await this.prisma.series.deleteMany({
+        where: { id: { in: opts.seriesIds }, comics: { none: {} } },
+      })
+    }
+    if (opts.publisherIds?.length) {
+      await this.prisma.publisher.deleteMany({
+        where: {
+          id: { in: opts.publisherIds },
+          comics: { none: {} },
+          series: { none: {} },
+        },
+      })
+    }
   }
 }
 

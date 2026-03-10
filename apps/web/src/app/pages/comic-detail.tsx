@@ -5,7 +5,14 @@ import {
   deleteComic,
   updateComic,
   syncSingleComic,
+  getPublishers,
+  getSeries,
+  getCreators,
+  getCharacters,
+  getGenres,
+  getStoryArcs,
 } from '../../api/client'
+import { TypeaheadField } from '../components/typeahead-field'
 import type { ComicDetailDto, UpdateComicDto } from '@comic-shelf/shared-types'
 import placeholderImg from '../../assets/comic-card-placeholder.webp'
 import { useForm } from '@mantine/form'
@@ -148,6 +155,19 @@ function formValuesToDto(values: ComicFormValues): UpdateComicDto {
     genres: values.genres,
   }
 }
+
+const fetchPublisherNames = (s?: string) =>
+  getPublishers(s).then((r) => [...new Set(r.map((i) => i.name))])
+const fetchSeriesNames = (s?: string) =>
+  getSeries(s).then((r) => [...new Set(r.map((i) => i.name))])
+const fetchCreatorNames = (s?: string) =>
+  getCreators(s).then((r) => r.map((i) => i.name))
+const fetchCharacterNames = (s?: string) =>
+  getCharacters(s).then((r) => r.map((i) => i.name))
+const fetchStoryArcNames = (s?: string) =>
+  getStoryArcs(s).then((r) => r.map((i) => i.name))
+const fetchGenreNames = (s?: string) =>
+  getGenres(s).then((r) => r.map((i) => i.name))
 
 const ROLE_OPTIONS = [
   { value: 'WRITER', label: 'Writer' },
@@ -491,15 +511,17 @@ export function ComicDetailPage() {
               Details
             </Title>
             <Stack gap="xs">
-              <TextInput
+              <TypeaheadField
                 label="Publisher"
                 placeholder="Publisher name"
+                fetchOptions={fetchPublisherNames}
                 key={form.key('publisherName')}
                 {...form.getInputProps('publisherName')}
               />
-              <TextInput
+              <TypeaheadField
                 label="Series"
                 placeholder="Series name"
+                fetchOptions={fetchSeriesNames}
                 key={form.key('seriesName')}
                 {...form.getInputProps('seriesName')}
               />
@@ -737,9 +759,10 @@ export function ComicDetailPage() {
           <Stack gap="xs">
             {form.getValues().creators.map((_, index) => (
               <Group key={index} wrap="nowrap">
-                <TextInput
+                <TypeaheadField
                   placeholder="Creator name"
                   style={{ flex: 1 }}
+                  fetchOptions={fetchCreatorNames}
                   key={form.key(`creators.${index}.name`)}
                   {...form.getInputProps(`creators.${index}.name`)}
                 />
@@ -783,9 +806,10 @@ export function ComicDetailPage() {
           <Stack gap="xs">
             {form.getValues().characters.map((_, index) => (
               <Group key={index} wrap="nowrap">
-                <TextInput
+                <TypeaheadField
                   placeholder="Character name"
                   style={{ flex: 1 }}
+                  fetchOptions={fetchCharacterNames}
                   key={form.key(`characters.${index}.name`)}
                   {...form.getInputProps(`characters.${index}.name`)}
                 />
@@ -822,9 +846,10 @@ export function ComicDetailPage() {
           <Stack gap="xs">
             {form.getValues().storyArcs.map((_, index) => (
               <Group key={index} wrap="nowrap">
-                <TextInput
+                <TypeaheadField
                   placeholder="Story arc name"
                   style={{ flex: 1 }}
+                  fetchOptions={fetchStoryArcNames}
                   key={form.key(`storyArcs.${index}.name`)}
                   {...form.getInputProps(`storyArcs.${index}.name`)}
                 />
@@ -866,9 +891,10 @@ export function ComicDetailPage() {
           <Stack gap="xs">
             {form.getValues().genres.map((_, index) => (
               <Group key={index} wrap="nowrap">
-                <TextInput
+                <TypeaheadField
                   placeholder="Genre name"
                   style={{ flex: 1 }}
+                  fetchOptions={fetchGenreNames}
                   key={form.key(`genres.${index}.name`)}
                   {...form.getInputProps(`genres.${index}.name`)}
                 />
