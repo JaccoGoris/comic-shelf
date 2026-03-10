@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Query,
@@ -11,11 +12,17 @@ import {
   HttpStatus,
 } from '@nestjs/common'
 import { ComicsService } from './comics.service'
-import type { UpdateComicDto } from '@comic-shelf/shared-types'
+import type { CreateComicDto, UpdateComicDto } from '@comic-shelf/shared-types'
 
 @Controller('comics')
 export class ComicsController {
   constructor(private readonly comicsService: ComicsService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  create(@Body() dto: CreateComicDto) {
+    return this.comicsService.create(dto)
+  }
 
   @Get()
   findAll(

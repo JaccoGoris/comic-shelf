@@ -333,6 +333,56 @@ export interface BackupImportResultDto {
   errors: string[]
 }
 
+// ─── Create DTO ─────────────────────────────────────────
+
+export interface CreateComicDto {
+  title: string
+  synopsis?: string | null
+  issueNumber?: string | null
+  volume?: string | null
+  year?: number | null
+  coverDate?: string | null
+  barcode?: string | null
+  legacyNumber?: string | null
+  variantNumber?: string | null
+  coverLetter?: string | null
+  era?: string | null
+  language?: string | null
+  country?: string | null
+  typeOfComic?: string | null
+  numberOfPages?: number | null
+  printing?: string | null
+  coverPriceCents?: number | null
+  coverPriceCurrency?: string | null
+  read?: boolean
+  preordered?: boolean
+  forSale?: boolean
+  quantity?: number
+  condition?: string | null
+  storageLocation?: string | null
+  loanedTo?: string | null
+  signedBy?: string | null
+  personalRating?: string | null
+  purchasePriceCents?: number | null
+  purchasePriceCurrency?: string | null
+  purchaseDate?: string | null
+  purchasedFrom?: string | null
+  collectionWishlist?: CollectionType | null
+  notes?: string | null
+  gradedBy?: string | null
+  gradedRating?: string | null
+  gradedLabelType?: string | null
+  gradedSerialNumber?: string | null
+  graderNotes?: string | null
+  pageQuality?: string | null
+  publisher?: { name: string } | null
+  series?: { name: string } | null
+  creators?: { name: string; role: CreatorRole }[]
+  characters?: { name: string }[]
+  storyArcs?: { name: string }[]
+  genres?: { name: string; type: GenreType }[]
+}
+
 // ─── Update DTO ─────────────────────────────────────────
 
 export interface UpdateComicDto {

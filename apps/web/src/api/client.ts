@@ -15,6 +15,7 @@ import type {
   MetronImportResultDto,
   MetronSyncStatusDto,
   MetronSingleSyncResultDto,
+  CreateComicDto,
   UpdateComicDto,
   AuthStatusDto,
   UserDto,
@@ -100,6 +101,11 @@ export async function getComics(
     Object.entries(filters).filter(([, v]) => v !== undefined && v !== ''),
   )
   const { data } = await api.get('/comics', { params })
+  return data
+}
+
+export async function createComic(dto: CreateComicDto): Promise<ComicDetailDto> {
+  const { data } = await api.post('/comics', dto)
   return data
 }
 

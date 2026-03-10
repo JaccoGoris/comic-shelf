@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService, Prisma } from '@comic-shelf/db'
 import { UpsertService } from '../shared/upsert.service'
-import type { UpdateComicDto } from '@comic-shelf/shared-types'
+import type { CreateComicDto, UpdateComicDto } from '@comic-shelf/shared-types'
 
 interface FindAllParams {
   page: number
@@ -38,6 +38,113 @@ export class ComicsService {
     private readonly prisma: PrismaService,
     private readonly upsertService: UpsertService,
   ) {}
+
+  async create(dto: CreateComicDto) {
+    const itemId = BigInt(-Date.now()) - BigInt(Math.floor(Math.random() * 10000))
+
+    const scalarData: Prisma.ComicCreateInput = {
+      itemId,
+      title: dto.title,
+      synopsis: dto.synopsis ?? null,
+      issueNumber: dto.issueNumber ?? null,
+      volume: dto.volume ?? null,
+      year: dto.year ?? null,
+      coverDate: dto.coverDate ?? null,
+      barcode: dto.barcode ?? null,
+      legacyNumber: dto.legacyNumber ?? null,
+      variantNumber: dto.variantNumber ?? null,
+      coverLetter: dto.coverLetter ?? null,
+      era: dto.era ?? null,
+      language: dto.language ?? null,
+      country: dto.country ?? null,
+      typeOfComic: dto.typeOfComic ?? null,
+      numberOfPages: dto.numberOfPages ?? null,
+      printing: dto.printing ?? null,
+      coverPriceCents: dto.coverPriceCents ?? null,
+      coverPriceCurrency: dto.coverPriceCurrency ?? null,
+      read: dto.read ?? false,
+      preordered: dto.preordered ?? false,
+      forSale: dto.forSale ?? false,
+      quantity: dto.quantity ?? 1,
+      condition: dto.condition ?? null,
+      storageLocation: dto.storageLocation ?? null,
+      loanedTo: dto.loanedTo ?? null,
+      signedBy: dto.signedBy ?? null,
+      personalRating: dto.personalRating ?? null,
+      purchasePriceCents: dto.purchasePriceCents ?? null,
+      purchasePriceCurrency: dto.purchasePriceCurrency ?? null,
+      purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : null,
+      purchasedFrom: dto.purchasedFrom ?? null,
+      collectionWishlist: dto.collectionWishlist ?? null,
+      notes: dto.notes ?? null,
+      gradedBy: dto.gradedBy ?? null,
+      gradedRating: dto.gradedRating ?? null,
+      gradedLabelType: dto.gradedLabelType ?? null,
+      gradedSerialNumber: dto.gradedSerialNumber ?? null,
+      graderNotes: dto.graderNotes ?? null,
+      pageQuality: dto.pageQuality ?? null,
+      dateAdded: new Date(),
+    }
+
+    // Publisher
+    if (dto.publisher) {
+      const pub = await this.upsertService.upsertPublisher(dto.publisher.name)
+      scalarData.publisher = { connect: { id: pub.id } }
+    }
+
+    // Series
+    if (dto.series) {
+      const publisherId = dto.publisher
+        ? (await this.upsertService.upsertPublisher(dto.publisher.name)).id
+        : null
+      const ser = await this.upsertService.upsertSeries(dto.series.name, publisherId)
+      scalarData.series = { connect: { id: ser.id } }
+    }
+
+    const newComic = await this.prisma.$transaction(async (tx) => {
+      const comic = await tx.comic.create({ data: scalarData })
+
+      if (dto.creators) {
+        for (const c of dto.creators) {
+          const creator = await this.upsertService.upsertCreator(c.name)
+          await tx.comicCreator.create({
+            data: { comicId: comic.id, creatorId: creator.id, role: c.role },
+          })
+        }
+      }
+
+      if (dto.characters) {
+        for (const c of dto.characters) {
+          const character = await this.upsertService.upsertCharacter(c.name)
+          await tx.comicCharacter.create({
+            data: { comicId: comic.id, characterId: character.id },
+          })
+        }
+      }
+
+      if (dto.storyArcs) {
+        for (const a of dto.storyArcs) {
+          const arc = await this.upsertService.upsertStoryArc(a.name)
+          await tx.comicStoryArc.create({
+            data: { comicId: comic.id, storyArcId: arc.id },
+          })
+        }
+      }
+
+      if (dto.genres) {
+        for (const g of dto.genres) {
+          const genre = await this.upsertService.upsertGenre(g.name)
+          await tx.comicGenre.create({
+            data: { comicId: comic.id, genreId: genre.id, type: g.type },
+          })
+        }
+      }
+
+      return comic
+    })
+
+    return this.findOne(newComic.id)
+  }
 
   async findAll(params: FindAllParams) {
     const {
