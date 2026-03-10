@@ -1,6 +1,6 @@
 export function formatPrice(
   cents?: number | null,
-  currency?: string | null,
+  currency?: string | null
 ): string | null {
   if (!cents) return null
   const dollars = (cents / 100).toFixed(2)

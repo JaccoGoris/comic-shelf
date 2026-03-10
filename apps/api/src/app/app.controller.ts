@@ -7,7 +7,7 @@ import { Public } from '../auth/decorators/public.decorator'
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly prismaService: PrismaService,
+    private readonly prismaService: PrismaService
   ) {}
 
   @Public()

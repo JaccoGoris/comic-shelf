@@ -91,7 +91,7 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     ALL_ROLES.map((role) => [
       CREATOR_ROLE_TO_FIELD[role],
       comic.creators.filter((c) => c.role === role).map((c) => c.creator.name),
-    ]),
+    ])
   ) as Record<CreatorField, string[]>
 
   return {
@@ -124,9 +124,7 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     signedBy: comic.signedBy ?? null,
     personalRating: comic.personalRating ?? null,
     purchasePrice:
-      comic.purchasePriceCents != null
-        ? comic.purchasePriceCents / 100
-        : null,
+      comic.purchasePriceCents != null ? comic.purchasePriceCents / 100 : null,
     purchasePriceCurrency: comic.purchasePriceCurrency ?? null,
     purchaseDate: comic.purchaseDate
       ? comic.purchaseDate.substring(0, 10)
@@ -145,7 +143,9 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
     ...creatorsByRole,
     characters: comic.characters.map((c) => c.name),
     storyArcs: comic.storyArcs.map((a) => a.name),
-    genres: comic.genres.filter((g) => g.type === 'GENRE').map((g) => g.genre.name),
+    genres: comic.genres
+      .filter((g) => g.type === 'GENRE')
+      .map((g) => g.genre.name),
     subgenres: comic.genres
       .filter((g) => g.type === 'SUBGENRE')
       .map((g) => g.genre.name),
@@ -155,8 +155,8 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
 function formValuesToDto(values: ComicFormValues): UpdateComicDto {
   const creators = ALL_ROLES.flatMap((role) =>
     (values[CREATOR_ROLE_TO_FIELD[role] as CreatorField] as string[]).map(
-      (name) => ({ name, role }),
-    ),
+      (name) => ({ name, role })
+    )
   )
 
   return {
@@ -231,8 +231,7 @@ const fetchGenreNames = (s?: string) =>
 function getInitialVisibleRoles(vals: ComicFormValues): CreatorRole[] {
   return ALL_ROLES.filter(
     (role) =>
-      (vals[CREATOR_ROLE_TO_FIELD[role] as CreatorField] as string[]).length >
-      0,
+      (vals[CREATOR_ROLE_TO_FIELD[role] as CreatorField] as string[]).length > 0
   )
 }
 
@@ -481,7 +480,7 @@ export function ComicDetailPage() {
   }
 
   const availableRolesToAdd = ROLE_OPTIONS.filter(
-    (r) => !visibleRoles.includes(r.value as CreatorRole),
+    (r) => !visibleRoles.includes(r.value as CreatorRole)
   )
 
   return (

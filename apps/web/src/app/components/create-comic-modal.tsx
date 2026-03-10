@@ -39,11 +39,11 @@ export function CreateComicModal({
 
   useEffect(() => {
     const matchedPublisher = publisherObjects.find(
-      (p) => p.name.toLowerCase() === publisherName.toLowerCase(),
+      (p) => p.name.toLowerCase() === publisherName.toLowerCase()
     )
     getSeries(debouncedSeries || undefined, matchedPublisher?.id)
       .then((series) =>
-        setSeriesOptions([...new Set(series.map((s) => s.name))]),
+        setSeriesOptions([...new Set(series.map((s) => s.name))])
       )
       .catch(() => {
         console.debug('Failed to fetch series for autocomplete, ignoring')

@@ -26,7 +26,7 @@ export class BackupController {
     res.setHeader('Content-Type', 'application/json')
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="comic-shelf-backup-${date}.json"`,
+      `attachment; filename="comic-shelf-backup-${date}.json"`
     )
     res.send(json)
   }
@@ -64,7 +64,9 @@ export class BackupController {
     ) {
       const envelope = parsed as BackupEnvelope
       if (!Array.isArray(envelope.comics)) {
-        throw new BadRequestException('Invalid backup envelope: comics must be an array.')
+        throw new BadRequestException(
+          'Invalid backup envelope: comics must be an array.'
+        )
       }
       version = envelope.version
       rawComics = envelope.comics as unknown as Record<string, unknown>[]

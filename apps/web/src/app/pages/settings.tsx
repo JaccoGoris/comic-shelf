@@ -25,11 +25,7 @@ import {
   IconDatabase,
   IconUsers,
 } from '@tabler/icons-react'
-import {
-  exportBackup,
-  importBackup,
-  importComics,
-} from '../../api/client'
+import { exportBackup, importBackup, importComics } from '../../api/client'
 import { useAuth } from '../../auth/auth-context'
 import { UsersPage } from './users'
 import type {
@@ -56,17 +52,11 @@ export function SettingsPage() {
 
       <Tabs value={activeTab} onChange={handleTabChange}>
         <Tabs.List>
-          <Tabs.Tab
-            value="data"
-            leftSection={<IconDatabase size={16} />}
-          >
+          <Tabs.Tab value="data" leftSection={<IconDatabase size={16} />}>
             Data Management
           </Tabs.Tab>
           {user?.role === 'ADMIN' && (
-            <Tabs.Tab
-              value="users"
-              leftSection={<IconUsers size={16} />}
-            >
+            <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
               Users
             </Tabs.Tab>
           )}
@@ -141,8 +131,7 @@ function DataManagementTab() {
         icon: <IconCheck size={16} />,
       })
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Restore failed.'
+      const message = err instanceof Error ? err.message : 'Restore failed.'
       setRestoreError(message)
       notifications.show({
         title: 'Restore failed',
@@ -170,8 +159,7 @@ function DataManagementTab() {
         icon: <IconCheck size={16} />,
       })
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Import failed.'
+      const message = err instanceof Error ? err.message : 'Import failed.'
       setImportError(message)
       notifications.show({
         title: 'Import failed',

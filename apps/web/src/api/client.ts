@@ -40,7 +40,7 @@ api.interceptors.response.use(
       window.location.href = '/login'
     }
     return Promise.reject(error)
-  },
+  }
 )
 
 // ─── Auth ─────────────────────────────────────────────────
@@ -98,16 +98,18 @@ export interface ComicFilters {
 }
 
 export async function getComics(
-  filters: ComicFilters = {},
+  filters: ComicFilters = {}
 ): Promise<PaginatedResponse<ComicListItemDto>> {
   const params = Object.fromEntries(
-    Object.entries(filters).filter(([, v]) => v !== undefined && v !== ''),
+    Object.entries(filters).filter(([, v]) => v !== undefined && v !== '')
   )
   const { data } = await api.get('/comics', { params })
   return data
 }
 
-export async function createComic(dto: CreateComicDto): Promise<ComicDetailDto> {
+export async function createComic(
+  dto: CreateComicDto
+): Promise<ComicDetailDto> {
   const { data } = await api.post('/comics', dto)
   return data
 }
@@ -119,7 +121,7 @@ export async function getComic(id: number): Promise<ComicDetailDto> {
 
 export async function updateComic(
   id: number,
-  dto: UpdateComicDto,
+  dto: UpdateComicDto
 ): Promise<ComicDetailDto> {
   const { data } = await api.patch(`/comics/${id}`, dto)
   return data
@@ -145,7 +147,9 @@ export async function importComics(file: File): Promise<ImportResultDto> {
 
 export async function exportBackup(): Promise<void> {
   const response = await api.get('/backup/export', { responseType: 'blob' })
-  const url = URL.createObjectURL(new Blob([response.data], { type: 'application/json' }))
+  const url = URL.createObjectURL(
+    new Blob([response.data], { type: 'application/json' })
+  )
   const date = new Date().toISOString().slice(0, 10)
   const a = document.createElement('a')
   a.href = url
@@ -171,7 +175,9 @@ export async function getSettings(): Promise<SiteSettingsDto> {
   return data
 }
 
-export async function updateSettings(dto: UpdateSiteSettingsDto): Promise<SiteSettingsDto> {
+export async function updateSettings(
+  dto: UpdateSiteSettingsDto
+): Promise<SiteSettingsDto> {
   const { data } = await api.patch('/settings', dto)
   return data
 }
@@ -194,7 +200,7 @@ export async function getPublishers(search?: string): Promise<PublisherDto[]> {
 
 export async function getSeries(
   search?: string,
-  publisherId?: number,
+  publisherId?: number
 ): Promise<SeriesDto[]> {
   const params: Record<string, string | number> = {}
   if (search) params['search'] = search
@@ -244,14 +250,14 @@ export async function searchMetron(params: {
 }
 
 export async function getMetronIssue(
-  metronId: number,
+  metronId: number
 ): Promise<MetronIssueDetailDto> {
   const { data } = await api.get(`/metron/issue/${metronId}`)
   return data
 }
 
 export async function importMetronIssue(
-  metronId: number,
+  metronId: number
 ): Promise<MetronImportResultDto> {
   const { data } = await api.post(`/metron/import/${metronId}`)
   return data
@@ -273,7 +279,7 @@ export async function stopMetronSync(): Promise<MetronSyncStatusDto> {
 }
 
 export async function syncSingleComic(
-  comicId: number,
+  comicId: number
 ): Promise<MetronSingleSyncResultDto> {
   const { data } = await api.post(`/metron/sync/${comicId}`)
   return data

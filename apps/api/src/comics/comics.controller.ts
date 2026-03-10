@@ -37,7 +37,7 @@ export class ComicsController {
     @Query('read') read?: string,
     @Query('collectionWishlist') collectionWishlist?: string,
     @Query('sortBy') sortBy?: string,
-    @Query('sortOrder') sortOrder?: string,
+    @Query('sortOrder') sortOrder?: string
   ) {
     return this.comicsService.findAll({
       page: page ? parseInt(page, 10) : 1,

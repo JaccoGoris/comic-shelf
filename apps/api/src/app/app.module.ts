@@ -19,8 +19,7 @@ import { StatsModule } from '../stats/stats.module'
   imports: [
     ServeStaticModule.forRoot({
       rootPath:
-        process.env.FRONTEND_DIST_PATH ||
-        join(__dirname, '..', 'public'),
+        process.env.FRONTEND_DIST_PATH || join(__dirname, '..', 'public'),
       exclude: ['/api/{*path}'],
     }),
     PrismaModule,

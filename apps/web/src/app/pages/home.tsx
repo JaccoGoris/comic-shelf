@@ -60,7 +60,11 @@ function StatCard({ label, value, icon, sub }: StatCardProps) {
       <Text fw={700} size="xl">
         {value}
       </Text>
-      {sub && <Text size="xs" c="dimmed" mt={4}>{sub}</Text>}
+      {sub && (
+        <Text size="xs" c="dimmed" mt={4}>
+          {sub}
+        </Text>
+      )}
     </Paper>
   )
 }
@@ -70,7 +74,11 @@ interface SectionProps {
   children: React.ReactNode
 }
 
-interface DonutLegendItem { name: string; value: number; color: string }
+interface DonutLegendItem {
+  name: string
+  value: number
+  color: string
+}
 
 function DonutLegend({ data }: { data: DonutLegendItem[] }) {
   return (
@@ -85,7 +93,9 @@ function DonutLegend({ data }: { data: DonutLegendItem[] }) {
               background: `var(--mantine-color-${d.color.replace('.', '-')})`,
             }}
           />
-          <Text size="xs">{d.name}: {d.value}</Text>
+          <Text size="xs">
+            {d.name}: {d.value}
+          </Text>
         </Group>
       ))}
     </Group>
@@ -111,10 +121,18 @@ export function HomePage() {
   useEffect(() => {
     let cancelled = false
     getStats()
-      .then((data) => { if (!cancelled) setStats(data) })
-      .catch(() => { if (!cancelled) setError('Failed to load dashboard stats.') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .then((data) => {
+        if (!cancelled) setStats(data)
+      })
+      .catch(() => {
+        if (!cancelled) setError('Failed to load dashboard stats.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (loading) {
@@ -171,7 +189,10 @@ export function HomePage() {
     )
   }
 
-  const comicsByYearStr = stats.comicsByYear.map((d) => ({ ...d, year: String(d.year) }))
+  const comicsByYearStr = stats.comicsByYear.map((d) => ({
+    ...d,
+    year: String(d.year),
+  }))
 
   const readUnreadData = [
     { name: 'Read', value: stats.totalRead, color: 'violet.6' },
@@ -215,21 +236,35 @@ export function HomePage() {
               }
             />
             <Stack gap={2}>
-              <Text fw={700} size="sm">{stats.totalRead} read</Text>
-              <Text size="xs" c="dimmed">{stats.totalUnread} unread</Text>
+              <Text fw={700} size="sm">
+                {stats.totalRead} read
+              </Text>
+              <Text size="xs" c="dimmed">
+                {stats.totalUnread} unread
+              </Text>
             </Stack>
           </Group>
         </Paper>
         <StatCard
           label="Cover Value"
           value={formatCurrency(stats.totalCoverValueCents)}
-          icon={<IconCurrencyDollar size={18} color="var(--mantine-color-violet-6)" />}
+          icon={
+            <IconCurrencyDollar
+              size={18}
+              color="var(--mantine-color-violet-6)"
+            />
+          }
           sub={`Spent: ${formatCurrency(stats.totalPurchaseSpendCents)}`}
         />
         <StatCard
           label="Publishers"
           value={stats.publisherCount.toLocaleString()}
-          icon={<IconBuildingSkyscraper size={18} color="var(--mantine-color-violet-6)" />}
+          icon={
+            <IconBuildingSkyscraper
+              size={18}
+              color="var(--mantine-color-violet-6)"
+            />
+          }
         />
         <StatCard
           label="Series"
@@ -358,7 +393,9 @@ export function HomePage() {
       {/* Row 6: Recently Added */}
       {stats.recentlyAdded.length > 0 && (
         <Paper withBorder p="md" radius="md">
-          <Text fw={600} mb="md">Recently Added</Text>
+          <Text fw={600} mb="md">
+            Recently Added
+          </Text>
           <ScrollArea>
             <Group gap="md" wrap="nowrap" pb="xs">
               {stats.recentlyAdded.map((comic) => (
@@ -369,7 +406,11 @@ export function HomePage() {
                   withBorder
                   radius="md"
                   p="sm"
-                  style={{ minWidth: 140, maxWidth: 160, textDecoration: 'none' }}
+                  style={{
+                    minWidth: 140,
+                    maxWidth: 160,
+                    textDecoration: 'none',
+                  }}
                 >
                   {comic.coverImageUrl ? (
                     <Card.Section>
@@ -381,8 +422,15 @@ export function HomePage() {
                       />
                     </Card.Section>
                   ) : (
-                    <Center h={180} bg="var(--mantine-color-default-border)" style={{ borderRadius: 'var(--mantine-radius-md)' }}>
-                      <IconBooks size={40} color="var(--mantine-color-dimmed)" />
+                    <Center
+                      h={180}
+                      bg="var(--mantine-color-default-border)"
+                      style={{ borderRadius: 'var(--mantine-radius-md)' }}
+                    >
+                      <IconBooks
+                        size={40}
+                        color="var(--mantine-color-dimmed)"
+                      />
                     </Center>
                   )}
                   <Stack gap={4} mt="xs">

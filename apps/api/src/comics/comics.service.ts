@@ -36,11 +36,12 @@ const COMIC_DETAIL_INCLUDE = {
 export class ComicsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly upsertService: UpsertService,
+    private readonly upsertService: UpsertService
   ) {}
 
   async create(dto: CreateComicDto) {
-    const itemId = BigInt(-Date.now()) - BigInt(Math.floor(Math.random() * 10000))
+    const itemId =
+      BigInt(-Date.now()) - BigInt(Math.floor(Math.random() * 10000))
 
     const scalarData: Prisma.ComicCreateInput = {
       itemId,
@@ -97,7 +98,10 @@ export class ComicsService {
       const publisherId = dto.publisher
         ? (await this.upsertService.upsertPublisher(dto.publisher.name)).id
         : null
-      const ser = await this.upsertService.upsertSeries(dto.series.name, publisherId)
+      const ser = await this.upsertService.upsertSeries(
+        dto.series.name,
+        publisherId
+      )
       scalarData.series = { connect: { id: ser.id } }
     }
 
@@ -225,7 +229,7 @@ export class ComicsService {
   private async findAllSortedByVolume(
     where: Prisma.ComicWhereInput,
     page: number,
-    limit: number,
+    limit: number
   ) {
     // Get filtered IDs via Prisma (respects all where filters), then sort with raw SQL
     // for proper numeric ordering of volume and issue_number string columns.
@@ -294,8 +298,10 @@ export class ComicsService {
       throw new NotFoundException(`Comic with id ${id} not found`)
     }
 
-    const oldPublisherId = dto.publisher !== undefined ? (comic.publisherId ?? undefined) : undefined
-    const oldSeriesId = dto.series !== undefined ? (comic.seriesId ?? undefined) : undefined
+    const oldPublisherId =
+      dto.publisher !== undefined ? comic.publisherId ?? undefined : undefined
+    const oldSeriesId =
+      dto.series !== undefined ? comic.seriesId ?? undefined : undefined
 
     const [oldCreatorIds, oldCharacterIds, oldStoryArcIds, oldGenreIds] =
       await Promise.all([
@@ -306,12 +312,18 @@ export class ComicsService {
           : Promise.resolve(undefined),
         dto.characters !== undefined
           ? this.prisma.comicCharacter
-              .findMany({ where: { comicId: id }, select: { characterId: true } })
+              .findMany({
+                where: { comicId: id },
+                select: { characterId: true },
+              })
               .then((r) => r.map((c) => c.characterId))
           : Promise.resolve(undefined),
         dto.storyArcs !== undefined
           ? this.prisma.comicStoryArc
-              .findMany({ where: { comicId: id }, select: { storyArcId: true } })
+              .findMany({
+                where: { comicId: id },
+                select: { storyArcId: true },
+              })
               .then((r) => r.map((a) => a.storyArcId))
           : Promise.resolve(undefined),
         dto.genres !== undefined
@@ -399,7 +411,7 @@ export class ComicsService {
           : comic.publisherId
         const ser = await this.upsertService.upsertSeries(
           dto.series.name,
-          publisherId,
+          publisherId
         )
         scalarData.series = { connect: { id: ser.id } }
       } else {

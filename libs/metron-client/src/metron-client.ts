@@ -12,7 +12,7 @@ export class MetronApiError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
-    public readonly retryAfter?: number,
+    public readonly retryAfter?: number
   ) {
     super(message)
     this.name = 'MetronApiError'
@@ -40,25 +40,25 @@ export class MetronClient {
   }
 
   async searchIssues(
-    params: MetronIssueSearchParams,
+    params: MetronIssueSearchParams
   ): Promise<MetronPaginatedResponse<MetronIssueListItem>> {
     return this.enqueue<MetronPaginatedResponse<MetronIssueListItem>>(
       () => this.http.get('/api/issue/', { params }),
-      'searchIssues',
+      'searchIssues'
     )
   }
 
   async getIssueDetail(id: number): Promise<MetronIssueDetail> {
     return this.enqueue<MetronIssueDetail>(
       () => this.http.get(`/api/issue/${id}/`),
-      'getIssueDetail',
+      'getIssueDetail'
     )
   }
 
   private enqueue<T>(
     request: () => Promise<{ data: T }>,
     context: string,
-    maxRetries = 3,
+    maxRetries = 3
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.pendingRequest = this.pendingRequest.then(async () => {
@@ -73,7 +73,7 @@ export class MetronClient {
           const elapsed = Date.now() - this.lastRequestTime
           if (elapsed < this.minRequestIntervalMs) {
             await new Promise((r) =>
-              setTimeout(r, this.minRequestIntervalMs - elapsed),
+              setTimeout(r, this.minRequestIntervalMs - elapsed)
             )
           }
         }
@@ -93,7 +93,7 @@ export class MetronClient {
 
             if (axiosError.response?.status === 429 && attempt < maxRetries) {
               const waitMs = parseRetryAfter(
-                axiosError.response.headers['retry-after'],
+                axiosError.response.headers['retry-after']
               )
               this.blockedUntil = Date.now() + waitMs
               await new Promise((r) => setTimeout(r, waitMs))
@@ -109,15 +109,17 @@ export class MetronClient {
                 new MetronApiError(
                   `Metron API error in ${context}: ${axiosError.response.status}`,
                   axiosError.response.status,
-                  retryAfter,
-                ),
+                  retryAfter
+                )
               )
             } else {
               reject(
                 new MetronApiError(
-                  `Failed to reach Metron API in ${context}: ${axiosError.message ?? String(error)}`,
-                  0,
-                ),
+                  `Failed to reach Metron API in ${context}: ${
+                    axiosError.message ?? String(error)
+                  }`,
+                  0
+                )
               )
             }
             return

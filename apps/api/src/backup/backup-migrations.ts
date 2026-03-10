@@ -16,7 +16,9 @@ export const CURRENT_BACKUP_VERSION = 2
 
 type PartialBackupComicDto = Record<string, unknown>
 
-function migrateV1toV2(comics: PartialBackupComicDto[]): PartialBackupComicDto[] {
+function migrateV1toV2(
+  comics: PartialBackupComicDto[]
+): PartialBackupComicDto[] {
   const now = new Date().toISOString()
   return comics.map((comic) => ({
     ...comic,
@@ -26,13 +28,16 @@ function migrateV1toV2(comics: PartialBackupComicDto[]): PartialBackupComicDto[]
   }))
 }
 
-const migrations: Record<number, (comics: PartialBackupComicDto[]) => PartialBackupComicDto[]> = {
+const migrations: Record<
+  number,
+  (comics: PartialBackupComicDto[]) => PartialBackupComicDto[]
+> = {
   1: migrateV1toV2,
 }
 
 export function migrateToCurrentVersion(
   comics: PartialBackupComicDto[],
-  fromVersion: number,
+  fromVersion: number
 ): BackupComicDto[] {
   let current = comics
   for (let v = fromVersion; v < CURRENT_BACKUP_VERSION; v++) {

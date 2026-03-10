@@ -13,7 +13,7 @@ export function TypeaheadField({
   ...props
 }: TypeaheadFieldProps) {
   const [search, setSearch] = useState<string>(
-    typeof defaultValue === 'string' ? defaultValue : '',
+    typeof defaultValue === 'string' ? defaultValue : ''
   )
   const [options, setOptions] = useState<string[]>([])
   const [debounced] = useDebouncedValue(search, 300)
@@ -30,7 +30,7 @@ export function TypeaheadField({
     return () => {
       cancelled = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced])
 
   return (

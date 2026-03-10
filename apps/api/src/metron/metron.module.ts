@@ -10,8 +10,7 @@ import { MetronService } from './metron.service'
       provide: MetronClient,
       useFactory: () =>
         new MetronClient({
-          baseUrl:
-            process.env['METRON_API_BASE_URL'] || 'https://metron.cloud',
+          baseUrl: process.env['METRON_API_BASE_URL'] || 'https://metron.cloud',
           username: process.env['METRON_USERNAME'] || '',
           password: process.env['METRON_PASSWORD'] || '',
           timeout: 15000,

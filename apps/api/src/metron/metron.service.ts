@@ -54,7 +54,7 @@ export class MetronService {
   constructor(
     private readonly metronClient: MetronClient,
     private readonly prisma: PrismaService,
-    private readonly upsertService: UpsertService,
+    private readonly upsertService: UpsertService
   ) {}
 
   // ─── API calls ─────────────────────────────────────────
@@ -71,10 +71,14 @@ export class MetronService {
   async searchBySeriesAndIssue(
     seriesName: string,
     issueNumber: string,
-    publisherName?: string,
+    publisherName?: string
   ): Promise<MetronSearchResultDto[]> {
     try {
-      const params: { series_name: string; number: string; publisher_name?: string } = {
+      const params: {
+        series_name: string
+        number: string
+        publisher_name?: string
+      } = {
         series_name: seriesName,
         number: issueNumber,
       }
@@ -90,7 +94,7 @@ export class MetronService {
   }
 
   private mapIssueResults(
-    results: MetronIssueListItem[],
+    results: MetronIssueListItem[]
   ): MetronSearchResultDto[] {
     return results.map((item) => ({
       id: item.id,
@@ -109,7 +113,7 @@ export class MetronService {
 
   private autoMatchIssue(
     results: MetronIssueListItem[],
-    issueNumber?: string | null,
+    issueNumber?: string | null
   ): MetronIssueListItem | null {
     if (results.length === 0) return null
     if (results.length === 1) return results[0]
@@ -175,7 +179,7 @@ export class MetronService {
     })
     if (existing) {
       throw new ConflictException(
-        `Comic with Metron ID ${metronId} already exists (comic #${existing.id}).`,
+        `Comic with Metron ID ${metronId} already exists (comic #${existing.id}).`
       )
     }
 
@@ -188,13 +192,13 @@ export class MetronService {
 
     // ── Publisher ──
     const publisherRecord = await this.upsertService.upsertPublisher(
-      detail.publisher.name,
+      detail.publisher.name
     )
 
     // ── Series ──
     const seriesRecord = await this.upsertService.upsertSeries(
       detail.series.name,
-      publisherRecord.id,
+      publisherRecord.id
     )
 
     // ── Parse price ──
@@ -254,7 +258,9 @@ export class MetronService {
     for (const credit of detail.credits) {
       const creatorNames = splitNames(credit.creator)
       for (const creatorName of creatorNames) {
-        const creatorRecord = await this.upsertService.upsertCreator(creatorName)
+        const creatorRecord = await this.upsertService.upsertCreator(
+          creatorName
+        )
         for (const role of credit.role) {
           const mappedRole = mapMetronRole(role.name)
           if (!mappedRole) continue
@@ -317,7 +323,7 @@ export class MetronService {
     }
 
     this.logger.log(
-      `Imported Metron issue #${metronId} as comic #${comic.id}: "${title}"`,
+      `Imported Metron issue #${metronId} as comic #${comic.id}: "${title}"`
     )
 
     return { comicId: comic.id }
@@ -391,7 +397,7 @@ export class MetronService {
       issueNumber: string | null
       series: { name: string } | null
       publisher: { name: string } | null
-    }[],
+    }[]
   ): Promise<void> {
     for (const comic of comics) {
       if (this.syncState.cancelRequested) {
@@ -411,11 +417,11 @@ export class MetronService {
         // Discard UPC results that don't match the stored issue number
         if (results.length > 0 && comic.issueNumber) {
           const numberMatch = results.some(
-            (r) => r.number === comic.issueNumber,
+            (r) => r.number === comic.issueNumber
           )
           if (!numberMatch) {
             this.logger.log(
-              `UPC results for comic #${comic.id} don't match stored issue number "${comic.issueNumber}", discarding and trying series fallback`,
+              `UPC results for comic #${comic.id} don't match stored issue number "${comic.issueNumber}", discarding and trying series fallback`
             )
             results = []
           }
@@ -424,7 +430,7 @@ export class MetronService {
         // Fallback to series name + issue number search
         if (results.length === 0 && comic.series?.name && comic.issueNumber) {
           this.logger.log(
-            `UPC lookup failed for comic #${comic.id}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`,
+            `UPC lookup failed for comic #${comic.id}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`
           )
           const res = await this.metronClient.searchIssues({
             series_name: comic.series.name,
@@ -479,7 +485,7 @@ export class MetronService {
     this.syncState.running = false
     this.syncState.completedAt = new Date()
     this.logger.log(
-      `Sync complete: ${this.syncState.found} found, ${this.syncState.skipped} skipped, ${this.syncState.failed} failed`,
+      `Sync complete: ${this.syncState.found} found, ${this.syncState.skipped} skipped, ${this.syncState.failed} failed`
     )
   }
 
@@ -532,7 +538,7 @@ export class MetronService {
         const numberMatch = results.some((r) => r.number === comic.issueNumber)
         if (!numberMatch) {
           this.logger.log(
-            `UPC results for comic #${comicId} don't match stored issue number "${comic.issueNumber}", discarding and trying series fallback`,
+            `UPC results for comic #${comicId} don't match stored issue number "${comic.issueNumber}", discarding and trying series fallback`
           )
           results = []
         }
@@ -541,9 +547,13 @@ export class MetronService {
       // Fallback to series name + issue number search
       if (results.length === 0 && comic.series?.name && comic.issueNumber) {
         this.logger.log(
-          `UPC lookup failed for comic #${comicId}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`,
+          `UPC lookup failed for comic #${comicId}, falling back to series+issue search: "${comic.series.name}" #${comic.issueNumber}`
         )
-        const params: { series_name: string; number: string; publisher_name?: string } = {
+        const params: {
+          series_name: string
+          number: string
+          publisher_name?: string
+        } = {
           series_name: comic.series.name,
           number: comic.issueNumber,
         }
@@ -632,8 +642,9 @@ export class MetronService {
           .map((n) => n.trim())
           .filter(Boolean)
         for (const creatorName of creatorNames) {
-          const creatorRecord =
-            await this.upsertService.upsertCreator(creatorName)
+          const creatorRecord = await this.upsertService.upsertCreator(
+            creatorName
+          )
           for (const role of credit.role) {
             const mappedRole = mapMetronRole(role.name)
             if (!mappedRole) continue
@@ -694,7 +705,7 @@ export class MetronService {
       if (detail.series.genres.length > 0) updatedFields.push('genres')
 
       this.logger.log(
-        `Single sync for comic #${comicId}: matched Metron #${metronId}`,
+        `Single sync for comic #${comicId}: matched Metron #${metronId}`
       )
       return { status: 'synced', updatedFields }
     } catch (err) {
@@ -709,37 +720,41 @@ export class MetronService {
   private handleApiError(error: unknown, method: string): never {
     if (error instanceof MetronApiError) {
       const status = error.statusCode
-      this.logger.error(`Metron API error in ${method}: ${status} — ${error.message}`)
+      this.logger.error(
+        `Metron API error in ${method}: ${status} — ${error.message}`
+      )
 
       if (status === 401) {
         throw new HttpException(
           'Metron API authentication failed. Check METRON_USERNAME and METRON_PASSWORD.',
-          HttpStatus.UNAUTHORIZED,
+          HttpStatus.UNAUTHORIZED
         )
       }
       if (status === 404) {
         throw new HttpException(
           'Issue not found on Metron.',
-          HttpStatus.NOT_FOUND,
+          HttpStatus.NOT_FOUND
         )
       }
       if (status === 429) {
         throw new HttpException(
           error.retryAfter
-            ? `Metron API rate limit exceeded. Retry after ${error.retryAfter / 1000}s.`
+            ? `Metron API rate limit exceeded. Retry after ${
+                error.retryAfter / 1000
+              }s.`
             : 'Metron API rate limit exceeded. Please wait and try again.',
-          HttpStatus.TOO_MANY_REQUESTS,
+          HttpStatus.TOO_MANY_REQUESTS
         )
       }
       if (status === 0) {
         throw new HttpException(
           'Failed to reach Metron API.',
-          HttpStatus.BAD_GATEWAY,
+          HttpStatus.BAD_GATEWAY
         )
       }
       throw new HttpException(
         `Metron API returned ${status}`,
-        HttpStatus.BAD_GATEWAY,
+        HttpStatus.BAD_GATEWAY
       )
     }
 
@@ -747,7 +762,7 @@ export class MetronService {
     this.logger.error(`Metron API error in ${method}: ${message}`)
     throw new HttpException(
       'Failed to reach Metron API.',
-      HttpStatus.BAD_GATEWAY,
+      HttpStatus.BAD_GATEWAY
     )
   }
 }
@@ -755,7 +770,10 @@ export class MetronService {
 // ─── Helpers ─────────────────────────────────────────────
 
 function splitNames(str: string): string[] {
-  return str.split(/\s*&\s*/).map((n) => n.trim()).filter(Boolean)
+  return str
+    .split(/\s*&\s*/)
+    .map((n) => n.trim())
+    .filter(Boolean)
 }
 
 function mapMetronRole(roleName: string): CreatorRole | null {

@@ -49,8 +49,15 @@ export class AuthController {
 
   @Public()
   @Post('setup')
-  async setup(@Body() dto: SetupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const { token, user } = await this.authService.setup(dto.username, dto.password)
+  async setup(
+    @Body() dto: SetupDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const { token, user } = await this.authService.setup(
+      dto.username,
+      dto.password
+    )
     setCookieToken(req, res, token)
     return { user }
   }

@@ -18,11 +18,11 @@ module.exports = (config, { options } = {}) => ({
       '@comic-shelf/db': join(__dirname, '../../libs/db/src/index.ts'),
       '@comic-shelf/shared-types': join(
         __dirname,
-        '../../libs/shared-types/src/index.ts',
+        '../../libs/shared-types/src/index.ts'
       ),
       '@comic-shelf/metron-client': join(
         __dirname,
-        '../../libs/metron-client/src/index.ts',
+        '../../libs/metron-client/src/index.ts'
       ),
     },
   },

@@ -19,7 +19,7 @@ export class BackupService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly upsertService: UpsertService,
+    private readonly upsertService: UpsertService
   ) {}
 
   async exportAll(): Promise<BackupEnvelope> {
@@ -89,7 +89,10 @@ export class BackupService {
       collectionWishlist: comic.collectionWishlist,
       publisher: comic.publisher?.name ?? null,
       series: comic.series?.name ?? null,
-      creators: comic.creators.map((c) => ({ name: c.creator.name, role: c.role })),
+      creators: comic.creators.map((c) => ({
+        name: c.creator.name,
+        role: c.role,
+      })),
       characters: comic.characters.map((c) => ({
         name: c.character.name,
         alias: c.character.alias,
@@ -130,14 +133,18 @@ export class BackupService {
         const seriesRecord = entry.series
           ? await this.upsertService.upsertSeries(
               entry.series,
-              publisherRecord?.id ?? null,
+              publisherRecord?.id ?? null
             )
           : null
 
-        const purchaseDate = entry.purchaseDate ? new Date(entry.purchaseDate) : null
+        const purchaseDate = entry.purchaseDate
+          ? new Date(entry.purchaseDate)
+          : null
         const dateAdded = entry.dateAdded ? new Date(entry.dateAdded) : null
         const storeDate = entry.storeDate ? new Date(entry.storeDate) : null
-        const createdAt = entry.createdAt ? new Date(entry.createdAt) : new Date()
+        const createdAt = entry.createdAt
+          ? new Date(entry.createdAt)
+          : new Date()
 
         const scalarData = {
           itemId,
@@ -204,7 +211,10 @@ export class BackupService {
           let comicId: number
 
           if (existing) {
-            await tx.comic.update({ where: { id: existing.id }, data: scalarData })
+            await tx.comic.update({
+              where: { id: existing.id },
+              data: scalarData,
+            })
             comicId = existing.id
             // Clear existing relations to replace them
             await tx.comicCreator.deleteMany({ where: { comicId } })
@@ -212,7 +222,9 @@ export class BackupService {
             await tx.comicStoryArc.deleteMany({ where: { comicId } })
             await tx.comicGenre.deleteMany({ where: { comicId } })
           } else {
-            const comic = await tx.comic.create({ data: { ...scalarData, createdAt } })
+            const comic = await tx.comic.create({
+              data: { ...scalarData, createdAt },
+            })
             comicId = comic.id
           }
 
@@ -226,7 +238,10 @@ export class BackupService {
 
           // Characters
           for (const c of entry.characters ?? []) {
-            const character = await this.upsertService.upsertCharacter(c.name, c.alias)
+            const character = await this.upsertService.upsertCharacter(
+              c.name,
+              c.alias
+            )
             await tx.comicCharacter.create({
               data: { comicId, characterId: character.id },
             })
@@ -255,16 +270,16 @@ export class BackupService {
           created++
         }
       } catch (err) {
-        const msg = `Failed to import "${entry?.title ?? 'unknown'}" (itemId: ${entry?.itemId ?? '?'}): ${
-          err instanceof Error ? err.message : String(err)
-        }`
+        const msg = `Failed to import "${entry?.title ?? 'unknown'}" (itemId: ${
+          entry?.itemId ?? '?'
+        }): ${err instanceof Error ? err.message : String(err)}`
         this.logger.warn(msg)
         errors.push(msg)
       }
     }
 
     this.logger.log(
-      `Backup import complete: ${created} created, ${updated} updated, ${errors.length} errors`,
+      `Backup import complete: ${created} created, ${updated} updated, ${errors.length} errors`
     )
 
     return { created, updated, errors }

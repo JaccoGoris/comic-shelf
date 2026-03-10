@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '@comic-shelf/db'
-import type { DashboardStatsDto, NameCountItem } from '@comic-shelf/shared-types'
+import type {
+  DashboardStatsDto,
+  NameCountItem,
+} from '@comic-shelf/shared-types'
 
 function resolveNames(
   groups: { id: number; count: number }[],
-  nameMap: Map<number, string>,
+  nameMap: Map<number, string>
 ): NameCountItem[] {
   return groups
     .map((g) => ({ name: nameMap.get(g.id), count: g.count }))
@@ -85,14 +88,27 @@ export class StatsService {
     ])
 
     // Resolve publisher/series/genre names in parallel
-    const publisherIds = publisherGroups.map((g) => g.publisherId).filter((id): id is number => id !== null)
-    const seriesIds = seriesGroups.map((g) => g.seriesId).filter((id): id is number => id !== null)
+    const publisherIds = publisherGroups
+      .map((g) => g.publisherId)
+      .filter((id): id is number => id !== null)
+    const seriesIds = seriesGroups
+      .map((g) => g.seriesId)
+      .filter((id): id is number => id !== null)
     const genreIds = genreGroups.map((g) => g.genreId)
 
     const [publishers, seriesList, genres] = await Promise.all([
-      this.prisma.publisher.findMany({ where: { id: { in: publisherIds } }, select: { id: true, name: true } }),
-      this.prisma.series.findMany({ where: { id: { in: seriesIds } }, select: { id: true, name: true } }),
-      this.prisma.genre.findMany({ where: { id: { in: genreIds } }, select: { id: true, name: true } }),
+      this.prisma.publisher.findMany({
+        where: { id: { in: publisherIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.series.findMany({
+        where: { id: { in: seriesIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.genre.findMany({
+        where: { id: { in: genreIds } },
+        select: { id: true, name: true },
+      }),
     ])
 
     const publisherMap = new Map(publishers.map((p) => [p.id, p.name]))
@@ -101,12 +117,12 @@ export class StatsService {
 
     const comicsByPublisher = resolveNames(
       publisherGroups.map((g) => ({ id: g.publisherId!, count: g._count.id })),
-      publisherMap,
+      publisherMap
     )
 
     const comicsBySeries = resolveNames(
       seriesGroups.map((g) => ({ id: g.seriesId!, count: g._count.id })),
-      seriesMap,
+      seriesMap
     )
 
     const comicsByYear = yearGroups.map((g) => ({
@@ -116,7 +132,7 @@ export class StatsService {
 
     const comicsByGenre = resolveNames(
       genreGroups.map((g) => ({ id: g.genreId, count: g._count.comicId })),
-      genreMap,
+      genreMap
     )
 
     const comicsAddedPerMonth = monthRows.map((r) => ({
@@ -135,10 +151,10 @@ export class StatsService {
     }))
 
     const totalCoverValueCents = coverValueAgg._sum.coverPriceCents ?? 0
-    const totalPurchaseSpendCents = purchaseSpendAgg._sum.purchasePriceCents ?? 0
-    const readPercentage = totalComics > 0
-      ? Math.round((totalRead / totalComics) * 100)
-      : 0
+    const totalPurchaseSpendCents =
+      purchaseSpendAgg._sum.purchasePriceCents ?? 0
+    const readPercentage =
+      totalComics > 0 ? Math.round((totalRead / totalComics) * 100) : 0
 
     return {
       totalComics,

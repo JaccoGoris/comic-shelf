@@ -1,7 +1,6 @@
 # Comic Shelf
 
-> [!WARNING]
-> **WARNING: This project is in early development and highly experimental.** Expect breaking changes, incomplete features, and rough edges. Use at your own risk — data loss or migration issues may occur between versions. Contributions and bug reports are welcome, but please be aware that the API, database schema, and configuration may change without notice.
+> [!WARNING] > **WARNING: This project is in early development and highly experimental.** Expect breaking changes, incomplete features, and rough edges. Use at your own risk — data loss or migration issues may occur between versions. Contributions and bug reports are welcome, but please be aware that the API, database schema, and configuration may change without notice.
 
 A self-hosted comic book collection manager. Track your comics, sync metadata from [Metron](https://metron.cloud), and browse your collection from any device.
 
@@ -28,7 +27,7 @@ services:
     container_name: comic-shelf
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       POSTGRES_HOST: comic-shelf-postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
@@ -52,7 +51,7 @@ services:
     volumes:
       - comic_shelf_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comic_shelf}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-comic_shelf}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -87,19 +86,19 @@ Regardless of how you run the app, the first-run flow is the same:
 
 ## Configuration
 
-| Variable              | Default                   | Required | Description                                                   |
-| --------------------- | ------------------------- | -------- | ------------------------------------------------------------- |
-| `JWT_SECRET`          | —                         | **Yes**  | Secret key for signing JWT tokens — use a long random string  |
-| `JWT_EXPIRATION`      | `7d`                      | No       | How long login sessions last (e.g. `1d`, `7d`, `30d`)        |
-| `POSTGRES_PASSWORD`   | `comic_shelf`             | No       | PostgreSQL password                                           |
-| `POSTGRES_HOST`       | `postgres`                | No       | PostgreSQL hostname (`postgres` in Docker, `localhost` in dev)|
-| `POSTGRES_USER`       | `comic_shelf`             | No       | PostgreSQL username                                           |
-| `POSTGRES_DB`         | `comic_shelf`             | No       | PostgreSQL database name                                      |
-| `PORT`                | `3000`                    | No       | Host port for the app                                         |
-| `DB_PORT`             | `5432`                    | No       | Host port for PostgreSQL (only needed for direct DB access)   |
-| `METRON_USERNAME`     | —                         | No       | Metron API username (for metadata sync)                       |
-| `METRON_PASSWORD`     | —                         | No       | Metron API password (for metadata sync)                       |
-| `METRON_API_BASE_URL` | `https://metron.cloud`    | No       | Metron API base URL                                           |
+| Variable              | Default                | Required | Description                                                    |
+| --------------------- | ---------------------- | -------- | -------------------------------------------------------------- |
+| `JWT_SECRET`          | —                      | **Yes**  | Secret key for signing JWT tokens — use a long random string   |
+| `JWT_EXPIRATION`      | `7d`                   | No       | How long login sessions last (e.g. `1d`, `7d`, `30d`)          |
+| `POSTGRES_PASSWORD`   | `comic_shelf`          | No       | PostgreSQL password                                            |
+| `POSTGRES_HOST`       | `postgres`             | No       | PostgreSQL hostname (`postgres` in Docker, `localhost` in dev) |
+| `POSTGRES_USER`       | `comic_shelf`          | No       | PostgreSQL username                                            |
+| `POSTGRES_DB`         | `comic_shelf`          | No       | PostgreSQL database name                                       |
+| `PORT`                | `3000`                 | No       | Host port for the app                                          |
+| `DB_PORT`             | `5432`                 | No       | Host port for PostgreSQL (only needed for direct DB access)    |
+| `METRON_USERNAME`     | —                      | No       | Metron API username (for metadata sync)                        |
+| `METRON_PASSWORD`     | —                      | No       | Metron API password (for metadata sync)                        |
+| `METRON_API_BASE_URL` | `https://metron.cloud` | No       | Metron API base URL                                            |
 
 Metron credentials are only needed if you want to sync metadata or add comics via UPC lookup. Sign up at [metron.cloud](https://metron.cloud).
 
@@ -130,18 +129,18 @@ The dev setup runs the API and frontend as separate processes with hot reload. T
 
 ### Scripts
 
-| Script                | Description                                       |
-| --------------------- | ------------------------------------------------- |
-| `npm run dev`         | Start DB + API + Web (dev mode with hot reload)   |
-| `npm run build`       | Build API and Web for production                  |
-| `npm run start:api`   | Start just the API                                |
-| `npm run start:web`   | Start just the Web app                            |
-| `npm run db:up`       | Start PostgreSQL container                        |
-| `npm run db:down`     | Stop PostgreSQL container (data preserved)        |
-| `npm run db:reset`    | Destroy all data, recreate DB, run migrations     |
-| `npm run db:studio`   | Open Prisma Studio (data browser)                 |
-| `npm run db:migrate`  | Run pending database migrations                   |
-| `npm run db:generate` | Regenerate Prisma client                          |
+| Script                | Description                                     |
+| --------------------- | ----------------------------------------------- |
+| `npm run dev`         | Start DB + API + Web (dev mode with hot reload) |
+| `npm run build`       | Build API and Web for production                |
+| `npm run start:api`   | Start just the API                              |
+| `npm run start:web`   | Start just the Web app                          |
+| `npm run db:up`       | Start PostgreSQL container                      |
+| `npm run db:down`     | Stop PostgreSQL container (data preserved)      |
+| `npm run db:reset`    | Destroy all data, recreate DB, run migrations   |
+| `npm run db:studio`   | Open Prisma Studio (data browser)               |
+| `npm run db:migrate`  | Run pending database migrations                 |
+| `npm run db:generate` | Regenerate Prisma client                        |
 
 ---
 

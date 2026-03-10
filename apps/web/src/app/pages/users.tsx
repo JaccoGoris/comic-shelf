@@ -51,7 +51,11 @@ export function UsersPage() {
     setError(null)
     setCreating(true)
     try {
-      await createUser({ username: newUsername, password: newPassword, role: newRole })
+      await createUser({
+        username: newUsername,
+        password: newPassword,
+        role: newRole,
+      })
       notifications.show({ message: 'User created', color: 'green' })
       setModalOpen(false)
       setNewUsername('')
@@ -70,8 +74,8 @@ export function UsersPage() {
       title: 'Delete User',
       children: (
         <Text size="sm">
-          Are you sure you want to delete <strong>{user.username}</strong>? This cannot be
-          undone.
+          Are you sure you want to delete <strong>{user.username}</strong>? This
+          cannot be undone.
         </Text>
       ),
       labels: { confirm: 'Delete', cancel: 'Cancel' },
@@ -95,7 +99,10 @@ export function UsersPage() {
     <>
       <Group justify="space-between" mb="md">
         <Title order={2}>Users</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => setModalOpen(true)}>
+        <Button
+          leftSection={<IconPlus size={16} />}
+          onClick={() => setModalOpen(true)}
+        >
           Add User
         </Button>
       </Group>
@@ -121,9 +128,13 @@ export function UsersPage() {
               <Table.Tr key={u.id}>
                 <Table.Td>{u.username}</Table.Td>
                 <Table.Td>
-                  <Badge color={u.role === 'ADMIN' ? 'violet' : 'gray'}>{u.role}</Badge>
+                  <Badge color={u.role === 'ADMIN' ? 'violet' : 'gray'}>
+                    {u.role}
+                  </Badge>
                 </Table.Td>
-                <Table.Td>{new Date(u.createdAt).toLocaleDateString()}</Table.Td>
+                <Table.Td>
+                  {new Date(u.createdAt).toLocaleDateString()}
+                </Table.Td>
                 <Table.Td>
                   <ActionIcon
                     color="red"

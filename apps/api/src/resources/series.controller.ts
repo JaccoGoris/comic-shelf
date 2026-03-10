@@ -8,7 +8,7 @@ export class SeriesController {
   @Get()
   async findAll(
     @Query('search') search?: string,
-    @Query('publisherId') publisherId?: string,
+    @Query('publisherId') publisherId?: string
   ) {
     return this.prisma.series.findMany({
       where: {

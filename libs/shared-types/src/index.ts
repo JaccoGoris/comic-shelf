@@ -335,9 +335,18 @@ export interface BackupImportResultDto {
 
 // ─── Dashboard Stats ─────────────────────────────────────
 
-export interface NameCountItem { name: string; count: number }
-export interface YearCountItem { year: number; count: number }
-export interface MonthCountItem { month: string; count: number }
+export interface NameCountItem {
+  name: string
+  count: number
+}
+export interface YearCountItem {
+  year: number
+  count: number
+}
+export interface MonthCountItem {
+  month: string
+  count: number
+}
 
 export interface RecentComicDto {
   id: number

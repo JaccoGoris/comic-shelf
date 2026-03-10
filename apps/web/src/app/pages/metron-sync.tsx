@@ -128,9 +128,7 @@ export function MetronSyncPage() {
         <Stack gap="xs">
           <Group justify="space-between">
             <Text size="sm" fw={500}>
-              {syncStatus.running
-                ? 'Sync in progress…'
-                : 'Last sync'}
+              {syncStatus.running ? 'Sync in progress…' : 'Last sync'}
             </Text>
             <Group gap="xs">
               <Badge color="green" variant="light" size="sm">

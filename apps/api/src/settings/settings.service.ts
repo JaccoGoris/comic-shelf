@@ -22,7 +22,9 @@ export class SettingsService {
         collectionName: dto.collectionName ?? 'Comic Collection',
       },
       update: {
-        ...(dto.collectionName !== undefined && { collectionName: dto.collectionName }),
+        ...(dto.collectionName !== undefined && {
+          collectionName: dto.collectionName,
+        }),
       },
     })
   }

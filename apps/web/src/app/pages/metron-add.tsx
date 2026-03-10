@@ -85,7 +85,7 @@ export function MetronAddModal({
         setError(
           searchMode === 'upc'
             ? 'No issues found for this UPC. Try searching by series name + issue number instead.'
-            : 'No issues found. Check the series name and issue number.',
+            : 'No issues found. Check the series name and issue number.'
         )
       } else {
         setStep('results')
@@ -478,7 +478,7 @@ function PreviewPanel({
                 <Badge key={`${c.id}-${r.id}`} variant="light" size="lg">
                   {r.name}: {c.creator}
                 </Badge>
-              )),
+              ))
             )}
           </Group>
         </Paper>

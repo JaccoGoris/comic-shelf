@@ -11,7 +11,10 @@ describe('AppController', () => {
       controllers: [AppController],
       providers: [
         AppService,
-        { provide: PrismaService, useValue: { $queryRaw: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: PrismaService,
+          useValue: { $queryRaw: jest.fn().mockResolvedValue([]) },
+        },
       ],
     }).compile()
   })

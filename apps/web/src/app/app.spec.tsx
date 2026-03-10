@@ -38,7 +38,7 @@ describe('App', () => {
         <MantineProvider>
           <App />
         </MantineProvider>
-      </BrowserRouter>,
+      </BrowserRouter>
     )
     expect(baseElement).toBeTruthy()
   })
@@ -49,10 +49,10 @@ describe('App', () => {
         <MantineProvider>
           <App />
         </MantineProvider>
-      </BrowserRouter>,
+      </BrowserRouter>
     )
     expect(
-      getAllByText(new RegExp('Comic Shelf', 'gi')).length > 0,
+      getAllByText(new RegExp('Comic Shelf', 'gi')).length > 0
     ).toBeTruthy()
   })
 })

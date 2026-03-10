@@ -31,5 +31,5 @@ root.render(
         </ModalsProvider>
       </MantineProvider>
     </BrowserRouter>
-  </StrictMode>,
+  </StrictMode>
 )

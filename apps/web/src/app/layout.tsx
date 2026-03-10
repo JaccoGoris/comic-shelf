@@ -54,9 +54,7 @@ export function Layout() {
     }
   }
 
-  const navItems = [
-    { label: 'Dashboard', icon: IconDashboard, to: '/' },
-  ]
+  const navItems = [{ label: 'Dashboard', icon: IconDashboard, to: '/' }]
 
   const collectionItems = [
     { label: 'Browse', icon: IconBooks, to: '/comics' },
@@ -136,10 +134,7 @@ export function Layout() {
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>{user?.username}</Menu.Label>
-                <Menu.Item
-                  leftSection={<IconUser size={14} />}
-                  disabled
-                >
+                <Menu.Item leftSection={<IconUser size={14} />} disabled>
                   Profile
                 </Menu.Item>
                 <Menu.Divider />
@@ -180,7 +175,11 @@ export function Layout() {
             to={item.to}
             label={item.label}
             leftSection={<item.icon size={18} />}
-            active={location.pathname === item.to || (item.to === '/comics' && location.pathname.startsWith('/comics/'))}
+            active={
+              location.pathname === item.to ||
+              (item.to === '/comics' &&
+                location.pathname.startsWith('/comics/'))
+            }
             onClick={close}
           />
         ))}

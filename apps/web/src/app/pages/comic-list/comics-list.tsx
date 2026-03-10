@@ -65,7 +65,7 @@ export function ComicsListPage() {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
   const [searchInput, setSearchInput] = useState(
-    searchParams.get('search') ?? '',
+    searchParams.get('search') ?? ''
   )
 
   const pageRef = useRef(1)
@@ -87,7 +87,7 @@ export function ComicsListPage() {
       if (read) filters.read = read === 'true'
       return filters
     },
-    [search, publisherId, seriesId, read],
+    [search, publisherId, seriesId, read]
   )
 
   const fetchComics = useCallback(async () => {
@@ -104,7 +104,7 @@ export function ComicsListPage() {
         title: 'Error',
         message: getErrorMessage(
           err,
-          'Failed to load comics. Please try again.',
+          'Failed to load comics. Please try again.'
         ),
         color: 'red',
       })

@@ -20,14 +20,14 @@ export class MetronController {
     @Query('upc') upc?: string,
     @Query('series_name') seriesName?: string,
     @Query('number') issueNumber?: string,
-    @Query('publisher_name') publisherName?: string,
+    @Query('publisher_name') publisherName?: string
   ) {
     const hasUpc = upc && upc.trim()
     const hasSeriesSearch = seriesName?.trim() && issueNumber?.trim()
 
     if (!hasUpc && !hasSeriesSearch) {
       throw new BadRequestException(
-        'Provide either a UPC or both series_name and number query parameters.',
+        'Provide either a UPC or both series_name and number query parameters.'
       )
     }
 
@@ -42,7 +42,7 @@ export class MetronController {
     return this.metronService.searchBySeriesAndIssue(
       seriesName!.trim(),
       issueNumber!.trim(),
-      publisherName?.trim(),
+      publisherName?.trim()
     )
   }
 

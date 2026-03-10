@@ -76,7 +76,7 @@ export class ImportService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly upsertService: UpsertService,
+    private readonly upsertService: UpsertService
   ) {}
 
   async importComics(rawEntries: unknown[]) {
@@ -125,7 +125,7 @@ export class ImportService {
     }
 
     this.logger.log(
-      `Import complete: ${imported} imported, ${skipped} skipped, ${errors.length} errors`,
+      `Import complete: ${imported} imported, ${skipped} skipped, ${errors.length} errors`
     )
 
     return { imported, skipped, errors }
@@ -141,7 +141,7 @@ export class ImportService {
     const seriesRecord = raw.Series
       ? await this.upsertService.upsertSeries(
           raw.Series,
-          publisherRecord?.id ?? null,
+          publisherRecord?.id ?? null
         )
       : null
 
