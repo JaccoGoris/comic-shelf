@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Container, Title, Text, Button, Stack, Group } from '@mantine/core'
-import { IconBooks, IconUpload } from '@tabler/icons-react'
+import { IconBooks } from '@tabler/icons-react'
 
 export function HomePage() {
   return (
@@ -18,15 +18,6 @@ export function HomePage() {
             leftSection={<IconBooks size={20} />}
           >
             Browse Collection
-          </Button>
-          <Button
-            component={Link}
-            to="/import"
-            size="lg"
-            variant="light"
-            leftSection={<IconUpload size={20} />}
-          >
-            Import Comics
           </Button>
         </Group>
       </Stack>

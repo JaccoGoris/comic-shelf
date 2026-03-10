@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMediaQuery } from '@mantine/hooks'
 import {
   searchMetron,
   getMetronIssue,
@@ -44,7 +45,12 @@ interface MetronAddModalProps {
   onImported: (comicId: number) => void
 }
 
-export function MetronAddModal({ opened, onClose, onImported }: MetronAddModalProps) {
+export function MetronAddModal({
+  opened,
+  onClose,
+  onImported,
+}: MetronAddModalProps) {
+  const isMobile = useMediaQuery('(max-width: 48em)')
   const [step, setStep] = useState<Step>('search')
   const [searchMode, setSearchMode] = useState<SearchMode>('upc')
   const [upc, setUpc] = useState('')
@@ -162,7 +168,14 @@ export function MetronAddModal({ opened, onClose, onImported }: MetronAddModalPr
   }
 
   return (
-    <Modal opened={opened} onClose={handleClose} title="Add Comic via Metron" fullScreen>
+    <Modal
+      opened={opened}
+      onClose={handleClose}
+      title="Add Comic via Metron"
+      size="xl"
+      fullScreen={isMobile}
+      centered
+    >
       {error && (
         <Alert
           icon={<IconAlertCircle size={16} />}

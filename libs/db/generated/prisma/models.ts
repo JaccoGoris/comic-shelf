@@ -8,6 +8,7 @@
  *
  * 🟢 You can import this file directly.
  */
+export type * from './models/SiteSettings.js'
 export type * from './models/User.js'
 export type * from './models/Publisher.js'
 export type * from './models/Series.js'

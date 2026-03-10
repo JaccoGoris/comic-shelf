@@ -51,6 +51,7 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
+  SiteSettings: 'SiteSettings',
   User: 'User',
   Publisher: 'Publisher',
   Series: 'Series',
@@ -79,6 +80,14 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 } as const)
 
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
+
+
+export const SiteSettingsScalarFieldEnum = {
+  id: 'id',
+  collectionName: 'collectionName'
+} as const
+
+export type SiteSettingsScalarFieldEnum = (typeof SiteSettingsScalarFieldEnum)[keyof typeof SiteSettingsScalarFieldEnum]
 
 
 export const UserScalarFieldEnum = {

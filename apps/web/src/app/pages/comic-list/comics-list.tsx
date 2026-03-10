@@ -28,7 +28,6 @@ import {
   Divider,
   Button,
   Menu,
-  ActionIcon,
 } from '@mantine/core'
 import { useDisclosure, useIntersection } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
@@ -334,9 +333,9 @@ export function ComicsListPage() {
             </Button>
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
-                <ActionIcon variant="filled" size={36} color="violet">
+                <Button px="xs">
                   <IconChevronDown size={16} />
-                </ActionIcon>
+                </Button>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item

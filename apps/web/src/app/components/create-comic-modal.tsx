@@ -1,8 +1,10 @@
-import { useState } from 'react'
-import { Modal, TextInput, NumberInput, Button, Stack } from '@mantine/core'
+import { useState, useEffect } from 'react'
+import { Modal, TextInput, Button, Stack, Autocomplete } from '@mantine/core'
+import { useMediaQuery, useDebouncedValue } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
-import { createComic } from '../../api/client'
+import { createComic, getPublishers, getSeries } from '../../api/client'
 import { getErrorMessage } from '../../utils/error'
+import type { PublisherDto } from '@comic-shelf/shared-types'
 
 interface CreateComicModalProps {
   opened: boolean
@@ -10,13 +12,43 @@ interface CreateComicModalProps {
   onCreated: (comicId: number) => void
 }
 
-export function CreateComicModal({ opened, onClose, onCreated }: CreateComicModalProps) {
+export function CreateComicModal({
+  opened,
+  onClose,
+  onCreated,
+}: CreateComicModalProps) {
+  const isMobile = useMediaQuery('(max-width: 48em)')
   const [title, setTitle] = useState('')
   const [issueNumber, setIssueNumber] = useState('')
   const [volume, setVolume] = useState('')
   const [publisherName, setPublisherName] = useState('')
   const [seriesName, setSeriesName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [publisherObjects, setPublisherObjects] = useState<PublisherDto[]>([])
+  const [seriesOptions, setSeriesOptions] = useState<string[]>([])
+  const [debouncedPublisher] = useDebouncedValue(publisherName, 300)
+  const [debouncedSeries] = useDebouncedValue(seriesName, 300)
+
+  useEffect(() => {
+    getPublishers(debouncedPublisher || undefined)
+      .then(setPublisherObjects)
+      .catch(() => {
+        console.debug('Failed to fetch publishers for autocomplete, ignoring')
+      })
+  }, [debouncedPublisher])
+
+  useEffect(() => {
+    const matchedPublisher = publisherObjects.find(
+      (p) => p.name.toLowerCase() === publisherName.toLowerCase(),
+    )
+    getSeries(debouncedSeries || undefined, matchedPublisher?.id)
+      .then((series) =>
+        setSeriesOptions([...new Set(series.map((s) => s.name))]),
+      )
+      .catch(() => {
+        console.debug('Failed to fetch series for autocomplete, ignoring')
+      })
+  }, [debouncedSeries, publisherObjects, publisherName])
 
   const reset = () => {
     setTitle('')
@@ -24,6 +56,8 @@ export function CreateComicModal({ opened, onClose, onCreated }: CreateComicModa
     setVolume('')
     setPublisherName('')
     setSeriesName('')
+    setPublisherObjects([])
+    setSeriesOptions([])
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +98,14 @@ export function CreateComicModal({ opened, onClose, onCreated }: CreateComicModa
   }
 
   return (
-    <Modal opened={opened} onClose={handleClose} title="Create Comic" size="md">
+    <Modal
+      opened={opened}
+      onClose={handleClose}
+      title="Create Comic"
+      size="lg"
+      centered
+      fullScreen={isMobile}
+    >
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">
           <TextInput
@@ -87,19 +128,26 @@ export function CreateComicModal({ opened, onClose, onCreated }: CreateComicModa
             value={volume}
             onChange={(e) => setVolume(e.currentTarget.value)}
           />
-          <TextInput
+          <Autocomplete
             label="Publisher"
             placeholder="e.g. Marvel Comics"
             value={publisherName}
-            onChange={(e) => setPublisherName(e.currentTarget.value)}
+            onChange={setPublisherName}
+            data={[...new Set(publisherObjects.map((p) => p.name))]}
           />
-          <TextInput
+          <Autocomplete
             label="Series"
             placeholder="e.g. Amazing Spider-Man"
             value={seriesName}
-            onChange={(e) => setSeriesName(e.currentTarget.value)}
+            onChange={setSeriesName}
+            data={seriesOptions}
           />
-          <Button type="submit" loading={loading} mt="sm" disabled={!title.trim()}>
+          <Button
+            type="submit"
+            loading={loading}
+            mt="sm"
+            disabled={!title.trim()}
+          >
             Create Comic
           </Button>
         </Stack>
