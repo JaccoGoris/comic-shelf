@@ -348,6 +348,25 @@ export interface MonthCountItem {
   count: number
 }
 
+export interface MonthSpendItem {
+  month: string
+  spentCents: number
+  coverCents: number
+  count: number
+}
+
+export interface CreatorStatItem {
+  name: string
+  count: number
+  role: string
+}
+
+export interface SeriesProgressItem {
+  name: string
+  owned: number
+  publisher: string | null
+}
+
 export interface RecentComicDto {
   id: number
   title: string
@@ -356,6 +375,8 @@ export interface RecentComicDto {
   publisher: string | null
   series: string | null
   dateAdded: string
+  purchasePriceCents?: number | null
+  purchaseDate?: string | null
 }
 
 export interface DashboardStatsDto {
@@ -369,12 +390,38 @@ export interface DashboardStatsDto {
   totalPurchaseSpendCents: number
   publisherCount: number
   seriesCount: number
+  // New counts/aggregates
+  totalPages: number
+  totalCreators: number
+  totalCharacters: number
+  gradedCount: number
+  signedCount: number
+  preorderedCount: number
+  averagePurchasePriceCents: number
+  totalSavingsCents: number
+  // Existing breakdowns
   comicsByPublisher: NameCountItem[]
   comicsBySeries: NameCountItem[]
   comicsByYear: YearCountItem[]
   comicsByGenre: NameCountItem[]
   comicsAddedPerMonth: MonthCountItem[]
   recentlyAdded: RecentComicDto[]
+  // New breakdowns
+  spendingByMonth: MonthSpendItem[]
+  topCreators: CreatorStatItem[]
+  topCharacters: NameCountItem[]
+  comicsByType: NameCountItem[]
+  comicsByEra: NameCountItem[]
+  comicsByCondition: NameCountItem[]
+  ratingDistribution: NameCountItem[]
+  publishersBySpend: NameCountItem[]
+  // Sparklines
+  monthlyGrowthSparkline: number[]
+  monthlySpendSparkline: number[]
+  // Recent purchases
+  recentPurchases: RecentComicDto[]
+  // Storage locations
+  topStorageLocations: NameCountItem[]
 }
 
 // ─── Site Settings ──────────────────────────────────────

@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './layout'
-import { HomePage } from './pages/home'
+import { HomePage } from './pages/home/home'
 import { ComicsListPage } from './pages/comic-list/comics-list'
 import { ComicDetailPage } from './pages/comic-detail'
 import { MetronSyncPage } from './pages/metron-sync'
