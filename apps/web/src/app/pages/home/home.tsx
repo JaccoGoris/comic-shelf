@@ -10,18 +10,12 @@ import {
   Group,
   Stack,
   Alert,
-  RingProgress,
   Center,
   Box,
   ScrollArea,
+  Grid,
 } from '@mantine/core'
-import {
-  BarChart,
-  AreaChart,
-  DonutChart,
-  CompositeChart,
-  RadarChart,
-} from '@mantine/charts'
+import { BarChart, AreaChart, DonutChart, RadarChart } from '@mantine/charts'
 import {
   IconBooks,
   IconEye,
@@ -126,22 +120,8 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
     [stats.totalRead, stats.totalUnread]
   )
 
-  const TYPE_COLORS = [
-    'violet.6',
-    'violet.4',
-    'violet.8',
-    'violet.3',
-    'violet.9',
-  ] as const
-
-  const comicsByTypeData = useMemo<DonutLegendItem[]>(
-    () =>
-      stats.comicsByType.map((d, i) => ({
-        name: d.name,
-        value: d.count,
-        color: TYPE_COLORS[i % TYPE_COLORS.length],
-      })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const radarTypeData = useMemo(
+    () => stats.comicsByType.map((d) => ({ subject: d.name, count: d.count })),
     [stats.comicsByType]
   )
 
@@ -152,16 +132,6 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
         count: d.count,
       })),
     [stats.comicsByEra]
-  )
-
-  const spendingChartData = useMemo(
-    () =>
-      stats.spendingByMonth.map((d) => ({
-        month: d.month,
-        Spent: Math.round(d.spentCents / 100),
-        'Cover Value': Math.round(d.coverCents / 100),
-      })),
-    [stats.spendingByMonth]
   )
 
   const savings = stats.totalSavingsCents
@@ -182,38 +152,12 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
           sub={`${stats.seriesCount} series`}
         />
 
-        {/* Read Progress with ring */}
-        <Paper withBorder p="md" radius="md">
-          <Group justify="space-between" mb={4}>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-              Read
-            </Text>
-            <IconEye size={18} color="var(--mantine-color-violet-6)" />
-          </Group>
-          <Group gap="xs" align="center">
-            <RingProgress
-              size={54}
-              thickness={5}
-              sections={[{ value: stats.readPercentage, color: 'violet.6' }]}
-              label={
-                <Center>
-                  <Text size="xs" fw={700}>
-                    {stats.readPercentage}%
-                  </Text>
-                </Center>
-              }
-            />
-            <Stack gap={2}>
-              <Text fw={700} size="sm">
-                {stats.totalRead} read
-              </Text>
-              <Text size="xs" c="dimmed">
-                {stats.totalUnread} unread
-              </Text>
-            </Stack>
-          </Group>
-        </Paper>
-
+        <StatCard
+          label="Read"
+          value={`${stats.totalRead}`}
+          icon={<IconEye size={18} color="var(--mantine-color-violet-6)" />}
+          sub={`${stats.totalUnread} unread`}
+        />
         <StatCard
           label="Cover Value"
           value={formatCurrency(stats.totalCoverValueCents)}
@@ -266,7 +210,7 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
             Collection Composition
           </Title>
         </Group>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
           {(stats.totalRead > 0 || stats.totalUnread > 0) && (
             <Stack align="center" gap="xs">
               <Text size="sm" fw={600} c="dimmed">
@@ -283,19 +227,20 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
             </Stack>
           )}
 
-          {comicsByTypeData.length > 0 && (
+          {radarTypeData.length > 1 && (
             <Stack align="center" gap="xs">
               <Text size="sm" fw={600} c="dimmed">
                 By Type
               </Text>
-              <DonutChart
-                data={comicsByTypeData}
-                size={140}
-                thickness={24}
-                withTooltip
-                withLabelsLine={false}
+              <RadarChart
+                h={160}
+                w="100%"
+                data={radarTypeData}
+                dataKey="subject"
+                series={[{ name: 'count', color: 'violet.6', opacity: 0.3 }]}
+                withPolarGrid
+                withPolarAngleAxis
               />
-              <DonutLegend data={comicsByTypeData} />
             </Stack>
           )}
 
@@ -306,6 +251,7 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
               </Text>
               <RadarChart
                 h={160}
+                w="100%"
                 data={radarEraData}
                 dataKey="subject"
                 series={[{ name: 'count', color: 'violet.6', opacity: 0.3 }]}
@@ -331,86 +277,65 @@ function DashboardContent({ stats }: { stats: DashboardStatsDto }) {
             </Title>
           </Group>
 
-          <SimpleGrid cols={{ base: 1, md: 2 }} mb="md">
-            {spendingChartData.length > 0 && (
-              <Box>
-                <Text size="sm" fw={600} c="dimmed" mb="xs">
-                  Monthly Spend vs Cover Value
-                </Text>
-                <CompositeChart
-                  h={280}
-                  data={spendingChartData}
-                  dataKey="month"
-                  series={[
-                    { name: 'Spent', color: 'violet.6', type: 'bar' },
-                    {
-                      name: 'Cover Value',
-                      color: 'violet.4',
-                      type: 'line',
-                    },
-                  ]}
-                  barProps={{ radius: 3 }}
-                  tickLine="none"
-                  withTooltip
-                  withLegend
-                  curveType="monotone"
+          <Grid mb="md" w="100%" columns={6}>
+            <Grid.Col span={{ base: 1, md: 5 }}>
+              {stats.publishersBySpend.length > 0 && (
+                <Stack justify="space-between" h="100%">
+                  <Text size="sm" fw={600} c="dimmed" mb="xs">
+                    Spending by Publisher
+                  </Text>
+                  <BarChart
+                    h={280}
+                    data={stats.publishersBySpend.map((d) => ({
+                      name: d.name,
+                      Spent: Math.round(d.count / 100),
+                    }))}
+                    dataKey="name"
+                    series={[
+                      { name: 'Spent', color: 'violet.5', label: 'Spent ($)' },
+                    ]}
+                    orientation="horizontal"
+                    gridAxis="x"
+                    withTooltip
+                    barProps={{ radius: 3 }}
+                    tickLine="none"
+                  />
+                </Stack>
+              )}
+            </Grid.Col>
+            <Grid.Col span={1}>
+              <Stack>
+                <MiniInsightCard
+                  label="Average Price Paid"
+                  value={formatCurrency(stats.averagePurchasePriceCents)}
+                  icon={
+                    <IconTag size={24} color="var(--mantine-color-violet-6)" />
+                  }
                 />
-              </Box>
-            )}
-
-            {stats.publishersBySpend.length > 0 && (
-              <Box>
-                <Text size="sm" fw={600} c="dimmed" mb="xs">
-                  Spending by Publisher
-                </Text>
-                <BarChart
-                  h={280}
-                  data={stats.publishersBySpend.map((d) => ({
-                    name: d.name,
-                    Spent: Math.round(d.count / 100),
-                  }))}
-                  dataKey="name"
-                  series={[
-                    { name: 'Spent', color: 'violet.5', label: 'Spent ($)' },
-                  ]}
-                  orientation="horizontal"
-                  gridAxis="x"
-                  withTooltip
-                  barProps={{ radius: 3 }}
-                  tickLine="none"
+                <MiniInsightCard
+                  label="Total Savings"
+                  value={`${savings >= 0 ? '+' : '-'}${savingsFormatted}`}
+                  color={savingsColor}
+                  icon={
+                    <IconPigMoney
+                      size={24}
+                      color={`var(--mantine-color-${savingsColor}-6)`}
+                    />
+                  }
                 />
-              </Box>
-            )}
-          </SimpleGrid>
-
-          <SimpleGrid cols={{ base: 1, sm: 3 }}>
-            <MiniInsightCard
-              label="Average Price Paid"
-              value={formatCurrency(stats.averagePurchasePriceCents)}
-              icon={<IconTag size={24} color="var(--mantine-color-violet-6)" />}
-            />
-            <MiniInsightCard
-              label="Total Savings"
-              value={`${savings >= 0 ? '+' : '-'}${savingsFormatted}`}
-              color={savingsColor}
-              icon={
-                <IconPigMoney
-                  size={24}
-                  color={`var(--mantine-color-${savingsColor}-6)`}
+                <MiniInsightCard
+                  label="Preordered"
+                  value={formatNumber(stats.preorderedCount)}
+                  icon={
+                    <IconShoppingCart
+                      size={24}
+                      color="var(--mantine-color-violet-6)"
+                    />
+                  }
                 />
-              }
-            />
-            <MiniInsightCard
-              label="Preordered"
-              value={formatNumber(stats.preorderedCount)}
-              icon={
-                <IconShoppingCart
-                  size={24}
-                  color="var(--mantine-color-violet-6)"
-                />
-              }
-            />
-          </SimpleGrid>
+              </Stack>
+            </Grid.Col>
+          </Grid>
         </Paper>
       )}
 
