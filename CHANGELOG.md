@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.4.0...v1.5.0) (2026-03-13)
+
+
+### Features
+
+* added nx agents and tweaked the dashboard a bit ([345af9c](https://github.com/JaccoGoris/comic-shelf/commit/345af9c1eb499ff9ea15a62d077b1d0d4ab87232))
+* reworked button styles, added series tracking ([cbf5d70](https://github.com/JaccoGoris/comic-shelf/commit/cbf5d70ca05cce0ea8a1d20a24c4462fc17c187a))
+* small dashboard tweaks ([21509ec](https://github.com/JaccoGoris/comic-shelf/commit/21509ece14cf785987b80e0922f3663bd1105943))
+
+
+### Bug Fixes
+
+* added series to the backup ([2774bef](https://github.com/JaccoGoris/comic-shelf/commit/2774bef103c69510009fe7a8997103acd60a3895))
+
 ## [1.4.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.3.0...v1.4.0) (2026-03-10)
 
 
