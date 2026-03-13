@@ -9,6 +9,7 @@ import {
   MetronClient,
   MetronApiError,
   type MetronIssueListItem,
+  type MetronSeriesListItem,
 } from '@comic-shelf/metron-client'
 import { PrismaService } from '@comic-shelf/db'
 import type { CreatorRole } from '@comic-shelf/shared-types'
@@ -18,6 +19,7 @@ import type {
   MetronIssueDetailDto,
   MetronSyncStatusDto,
   MetronSingleSyncResultDto,
+  MetronSeriesSearchResultDto,
 } from '@comic-shelf/shared-types'
 
 // ─── Metron role name → CreatorRole mapping ──────────────
@@ -172,6 +174,147 @@ export class MetronService {
     }
   }
 
+  // ─── Series search ─────────────────────────────────────
+
+  async getSeriesById(id: number): Promise<MetronSeriesSearchResultDto> {
+    try {
+      const series = await this.metronClient.getSeries(id)
+      return {
+        id: series.id,
+        name: series.series,
+        volume: series.volume,
+        yearBegan: series.year_began,
+        issueCount: series.issue_count,
+      }
+    } catch (error) {
+      this.handleApiError(error, 'getSeriesById')
+    }
+  }
+
+  async searchSeries(
+    name: string,
+    publisherName?: string
+  ): Promise<MetronSeriesSearchResultDto[]> {
+    try {
+      const params: { name: string; publisher_name?: string } = { name }
+      if (publisherName) {
+        params.publisher_name = publisherName
+      }
+      const response = await this.metronClient.searchSeries(params)
+      return this.mapSeriesResults(response.results)
+    } catch (error) {
+      this.handleApiError(error, 'searchSeries')
+    }
+  }
+
+  private mapSeriesResults(
+    results: MetronSeriesListItem[]
+  ): MetronSeriesSearchResultDto[] {
+    return results.map((item) => ({
+      id: item.id,
+      name: item.series,
+      volume: item.volume,
+      yearBegan: item.year_began,
+      issueCount: item.issue_count,
+    }))
+  }
+
+  // ─── Populate tracked series ───────────────────────────
+
+  async populateTrackedSeries(
+    metronSeriesId: number,
+    seriesName: string,
+    volume?: number | null
+  ): Promise<{ created: number; skipped: number }> {
+    let created = 0
+    let skipped = 0
+    let page = 1
+
+    // Series record — upserted once, reused for all issues
+    let seriesRecord: { id: number } | null = null
+
+    while (true) {
+      const response = await this.metronClient.getSeriesIssues(
+        metronSeriesId,
+        page
+      )
+
+      // Batch-check which issues already exist in DB for this page
+      const pageIds = response.results.map((r) => r.id)
+      const existingInPage = await this.prisma.comic.findMany({
+        where: { metronId: { in: pageIds } },
+        select: { metronId: true },
+      })
+      const existingIds = new Set(existingInPage.map((c) => c.metronId))
+
+      for (const issue of response.results) {
+        if (existingIds.has(issue.id)) {
+          skipped++
+          continue
+        }
+
+        // Upsert the series record (without publisher info — list items don't include it)
+        if (!seriesRecord) {
+          seriesRecord = await this.prisma.series.upsert({
+            where: { metronSeriesId },
+            create: {
+              name: seriesName,
+              publisherId: null,
+              metronSeriesId,
+            },
+            update: {},
+          })
+        }
+
+        // Build a minimal MISSING comic from the list item
+        const itemId =
+          BigInt(-Date.now()) - BigInt(Math.floor(Math.random() * 10000))
+
+        const title = `${seriesName} #${issue.number}`
+
+        let year: number | null = null
+        if (issue.cover_date) {
+          const parsed = new Date(issue.cover_date)
+          if (!isNaN(parsed.getTime())) {
+            year = parsed.getFullYear()
+          }
+        }
+
+        await this.prisma.comic.create({
+          data: {
+            itemId,
+            metronId: issue.id,
+            title,
+            issueNumber: issue.number,
+            volume: volume != null ? String(volume) : null,
+            coverDate: issue.cover_date,
+            storeDate: issue.store_date ? new Date(issue.store_date) : null,
+            coverImageUrl: issue.image ?? null,
+            year,
+            language: 'en',
+            collectionWishlist: 'MISSING',
+            seriesId: seriesRecord.id,
+            publisherId: null,
+            dateAdded: new Date(),
+          },
+        })
+
+        created++
+      }
+
+      if (!response.next) {
+        break
+      }
+      page++
+    }
+
+    this.logger.log(
+      `Populated tracked series ${metronSeriesId} ("${seriesName}"): ${created} created, ${skipped} skipped`
+    )
+
+    return { created, skipped }
+  }
+
   async importIssue(metronId: number): Promise<{ comicId: number }> {
     // Check for duplicate
     const existing = await this.prisma.comic.findUnique({
@@ -198,7 +341,8 @@ export class MetronService {
     // ── Series ──
     const seriesRecord = await this.upsertService.upsertSeries(
       detail.series.name,
-      publisherRecord.id
+      publisherRecord.id,
+      detail.series.id
     )
 
     // ── Parse price ──
@@ -353,15 +497,14 @@ export class MetronService {
     return this.getSyncStatus()
   }
 
-  async startSync(): Promise<MetronSyncStatusDto> {
+  async startSync(force = false): Promise<MetronSyncStatusDto> {
     if (this.syncState.running) {
       throw new ConflictException('A sync is already in progress.')
     }
     const comics = await this.prisma.comic.findMany({
-      where: {
-        metronId: null,
-        OR: [{ barcode: { not: null } }, { issueNumber: { not: null } }],
-      },
+      where: force
+        ? { OR: [{ metronId: { not: null } }, { barcode: { not: null } }, { issueNumber: { not: null } }] }
+        : { metronId: null, OR: [{ barcode: { not: null } }, { issueNumber: { not: null } }] },
       select: {
         id: true,
         barcode: true,
@@ -443,35 +586,80 @@ export class MetronService {
         if (item) {
           const existing = await this.prisma.comic.findUnique({
             where: { id: comic.id },
-            select: { coverDate: true, volume: true, year: true },
+            select: {
+              coverDate: true,
+              volume: true,
+              year: true,
+              synopsis: true,
+              numberOfPages: true,
+              coverPriceCents: true,
+            },
           })
 
-          // Fetch full detail to get the correct UPC from Metron
-          const detail = await this.metronClient.getIssueDetail(item.id)
+          // Fetch full detail via DTO mapper
+          const detail = await this.getIssueDetail(item.id)
+
+          // Upsert publisher & series
+          const publisherRecord = await this.upsertService.upsertPublisher(
+            detail.publisher.name
+          )
+          const seriesRecord = await this.upsertService.upsertSeries(
+            detail.series.name,
+            publisherRecord.id,
+            detail.series.id
+          )
+
+          // Parse cover price
+          let coverPriceCents: number | undefined
+          let coverPriceCurrency: string | undefined
+          if (!existing?.coverPriceCents && detail.price) {
+            const parsed = parseFloat(detail.price)
+            if (!isNaN(parsed)) {
+              coverPriceCents = Math.round(parsed * 100)
+              coverPriceCurrency = detail.priceCurrency ?? undefined
+            }
+          }
 
           await this.prisma.comic.update({
             where: { id: comic.id },
             data: {
               metronId: item.id,
               barcode: detail.upc ?? undefined,
-              coverImageUrl: item.image ?? undefined,
-              storeDate: item.store_date
-                ? new Date(item.store_date)
+              coverImageUrl: detail.image ?? undefined,
+              publisherId: publisherRecord.id,
+              seriesId: seriesRecord.id,
+              storeDate: detail.storeDate
+                ? new Date(detail.storeDate)
                 : undefined,
               coverDate:
-                !existing?.coverDate && item.cover_date
-                  ? item.cover_date
+                !existing?.coverDate && detail.coverDate
+                  ? detail.coverDate
                   : undefined,
               volume:
-                !existing?.volume && item.series.volume
-                  ? String(item.series.volume)
+                !existing?.volume && detail.series.volume
+                  ? String(detail.series.volume)
                   : undefined,
               year:
-                !existing?.year && item.series.year_began
-                  ? item.series.year_began
+                !existing?.year && detail.series.yearBegan
+                  ? detail.series.yearBegan
                   : undefined,
+              synopsis:
+                !existing?.synopsis && detail.desc
+                  ? detail.desc
+                  : undefined,
+              numberOfPages:
+                !existing?.numberOfPages && detail.page
+                  ? detail.page
+                  : undefined,
+              coverPriceCents,
+              coverPriceCurrency,
             },
           })
+
+          // Apply relationships (arcs, credits, characters, genres)
+          const updatedFields: string[] = []
+          await this.applyRelationships(comic.id, detail, updatedFields)
+
           this.syncState.found++
         } else {
           this.syncState.skipped++
@@ -482,6 +670,32 @@ export class MetronService {
       }
       this.syncState.processed++
     }
+
+    // ── Pass 2: Check tracked series for new issues ──────
+    const trackedSeries = await this.prisma.trackedSeries.findMany()
+    for (const ts of trackedSeries) {
+      if (this.syncState.cancelRequested) {
+        this.syncState.cancelled = true
+        break
+      }
+      try {
+        const { created } = await this.populateTrackedSeries(
+          ts.metronSeriesId,
+          ts.name,
+          ts.volume
+        )
+        if (created > 0) {
+          this.logger.log(
+            `Tracked series ${ts.metronSeriesId} "${ts.name}": ${created} new missing issues created`
+          )
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to sync tracked series ${ts.metronSeriesId}: ${err}`
+        )
+      }
+    }
+
     this.syncState.running = false
     this.syncState.completedAt = new Date()
     this.logger.log(
@@ -516,7 +730,74 @@ export class MetronService {
       throw new HttpException('Comic not found.', HttpStatus.NOT_FOUND)
     }
     if (comic.metronId) {
-      return { status: 'skipped', reason: 'Already synced with Metron' }
+      try {
+        const detail = await this.getIssueDetail(comic.metronId)
+        const updatedFields: string[] = []
+        const updateData: Record<string, unknown> = {}
+
+        // Upsert publisher & series
+        const publisherRecord = await this.upsertService.upsertPublisher(
+          detail.publisher.name
+        )
+        const seriesRecord = await this.upsertService.upsertSeries(
+          detail.series.name,
+          publisherRecord.id,
+          detail.series.id
+        )
+        updateData.publisherId = publisherRecord.id
+        updateData.seriesId = seriesRecord.id
+        updatedFields.push('publisher', 'series')
+
+        if (detail.image) {
+          updateData.coverImageUrl = detail.image
+          updatedFields.push('cover image')
+        }
+        if (detail.storeDate) {
+          updateData.storeDate = new Date(detail.storeDate)
+          updatedFields.push('store date')
+        }
+        if (!comic.coverDate && detail.coverDate) {
+          updateData.coverDate = detail.coverDate
+          updatedFields.push('cover date')
+        }
+        if (!comic.volume && detail.series.volume) {
+          updateData.volume = String(detail.series.volume)
+          updatedFields.push('volume')
+        }
+        if (!comic.year && detail.series.yearBegan) {
+          updateData.year = detail.series.yearBegan
+          updatedFields.push('year')
+        }
+        if (!comic.synopsis && detail.desc) {
+          updateData.synopsis = detail.desc
+          updatedFields.push('synopsis')
+        }
+        if (!comic.numberOfPages && detail.page) {
+          updateData.numberOfPages = detail.page
+          updatedFields.push('pages')
+        }
+        if (!comic.coverPriceCents && detail.price) {
+          const parsed = parseFloat(detail.price)
+          if (!isNaN(parsed)) {
+            updateData.coverPriceCents = Math.round(parsed * 100)
+            updateData.coverPriceCurrency = detail.priceCurrency ?? null
+            updatedFields.push('cover price')
+          }
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await this.prisma.comic.update({ where: { id: comicId }, data: updateData })
+        }
+
+        await this.applyRelationships(comicId, detail, updatedFields)
+
+        this.logger.log(`Re-sync for comic #${comicId} using existing Metron #${comic.metronId}`)
+        return { status: 'synced', updatedFields }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        this.logger.warn(`Re-sync failed for comic #${comicId}: ${message}`)
+        return { status: 'failed', reason: message }
+      }
     }
     if (!comic.barcode && !comic.issueNumber) {
       return {
@@ -573,9 +854,22 @@ export class MetronService {
       const detail = await this.getIssueDetail(metronId)
       const updatedFields: string[] = []
 
+      // Upsert publisher & series
+      const publisherRecord = await this.upsertService.upsertPublisher(
+        detail.publisher.name
+      )
+      const seriesRecord = await this.upsertService.upsertSeries(
+        detail.series.name,
+        publisherRecord.id,
+        detail.series.id
+      )
+
       // Build update data, only filling in missing fields
       const updateData: Record<string, unknown> = { metronId: detail.id }
       updatedFields.push('metronId')
+      updateData.publisherId = publisherRecord.id
+      updateData.seriesId = seriesRecord.id
+      updatedFields.push('publisher', 'series')
 
       if (detail.upc && detail.upc !== comic.barcode) {
         updateData.barcode = detail.upc
@@ -624,85 +918,7 @@ export class MetronService {
         data: updateData,
       })
 
-      // Upsert story arcs
-      for (const arc of detail.arcs) {
-        const arcRecord = await this.upsertService.upsertStoryArc(arc.name)
-        await this.prisma.comicStoryArc.upsert({
-          where: { comicId_storyArcId: { comicId, storyArcId: arcRecord.id } },
-          create: { comicId, storyArcId: arcRecord.id },
-          update: {},
-        })
-      }
-      if (detail.arcs.length > 0) updatedFields.push('story arcs')
-
-      // Upsert creators
-      for (const credit of detail.credits) {
-        const creatorNames = credit.creator
-          .split(/\s*&\s*/)
-          .map((n) => n.trim())
-          .filter(Boolean)
-        for (const creatorName of creatorNames) {
-          const creatorRecord = await this.upsertService.upsertCreator(
-            creatorName
-          )
-          for (const role of credit.role) {
-            const mappedRole = mapMetronRole(role.name)
-            if (!mappedRole) continue
-            await this.prisma.comicCreator.upsert({
-              where: {
-                comicId_creatorId_role: {
-                  comicId,
-                  creatorId: creatorRecord.id,
-                  role: mappedRole,
-                },
-              },
-              create: {
-                comicId,
-                creatorId: creatorRecord.id,
-                role: mappedRole,
-              },
-              update: {},
-            })
-          }
-        }
-      }
-      if (detail.credits.length > 0) updatedFields.push('creators')
-
-      // Upsert characters
-      for (const char of detail.characters) {
-        const charNames = char.name
-          .split(/\s*&\s*/)
-          .map((n) => n.trim())
-          .filter(Boolean)
-        for (const charName of charNames) {
-          const character = await this.upsertService.upsertCharacter(charName)
-          await this.prisma.comicCharacter.upsert({
-            where: {
-              comicId_characterId: { comicId, characterId: character.id },
-            },
-            create: { comicId, characterId: character.id },
-            update: {},
-          })
-        }
-      }
-      if (detail.characters.length > 0) updatedFields.push('characters')
-
-      // Upsert genres
-      for (const genre of detail.series.genres) {
-        const genreRecord = await this.upsertService.upsertGenre(genre.name)
-        await this.prisma.comicGenre.upsert({
-          where: {
-            comicId_genreId_type: {
-              comicId,
-              genreId: genreRecord.id,
-              type: 'GENRE',
-            },
-          },
-          create: { comicId, genreId: genreRecord.id, type: 'GENRE' },
-          update: {},
-        })
-      }
-      if (detail.series.genres.length > 0) updatedFields.push('genres')
+      await this.applyRelationships(comicId, detail, updatedFields)
 
       this.logger.log(
         `Single sync for comic #${comicId}: matched Metron #${metronId}`
@@ -713,6 +929,74 @@ export class MetronService {
       this.logger.warn(`Single sync failed for comic #${comicId}: ${message}`)
       return { status: 'failed', reason: message }
     }
+  }
+
+  private async applyRelationships(
+    comicId: number,
+    detail: MetronIssueDetailDto,
+    updatedFields: string[]
+  ): Promise<void> {
+    // Upsert story arcs
+    for (const arc of detail.arcs) {
+      const arcRecord = await this.upsertService.upsertStoryArc(arc.name)
+      await this.prisma.comicStoryArc.upsert({
+        where: { comicId_storyArcId: { comicId, storyArcId: arcRecord.id } },
+        create: { comicId, storyArcId: arcRecord.id },
+        update: {},
+      })
+    }
+    if (detail.arcs.length > 0) updatedFields.push('story arcs')
+
+    // Upsert creators
+    for (const credit of detail.credits) {
+      const creatorNames = splitNames(credit.creator)
+      for (const creatorName of creatorNames) {
+        const creatorRecord = await this.upsertService.upsertCreator(creatorName)
+        for (const role of credit.role) {
+          const mappedRole = mapMetronRole(role.name)
+          if (!mappedRole) continue
+          await this.prisma.comicCreator.upsert({
+            where: {
+              comicId_creatorId_role: {
+                comicId,
+                creatorId: creatorRecord.id,
+                role: mappedRole,
+              },
+            },
+            create: { comicId, creatorId: creatorRecord.id, role: mappedRole },
+            update: {},
+          })
+        }
+      }
+    }
+    if (detail.credits.length > 0) updatedFields.push('creators')
+
+    // Upsert characters
+    for (const char of detail.characters) {
+      const charNames = splitNames(char.name)
+      for (const charName of charNames) {
+        const character = await this.upsertService.upsertCharacter(charName)
+        await this.prisma.comicCharacter.upsert({
+          where: { comicId_characterId: { comicId, characterId: character.id } },
+          create: { comicId, characterId: character.id },
+          update: {},
+        })
+      }
+    }
+    if (detail.characters.length > 0) updatedFields.push('characters')
+
+    // Upsert genres
+    for (const genre of detail.series.genres) {
+      const genreRecord = await this.upsertService.upsertGenre(genre.name)
+      await this.prisma.comicGenre.upsert({
+        where: {
+          comicId_genreId_type: { comicId, genreId: genreRecord.id, type: 'GENRE' },
+        },
+        create: { comicId, genreId: genreRecord.id, type: 'GENRE' },
+        update: {},
+      })
+    }
+    if (detail.series.genres.length > 0) updatedFields.push('genres')
   }
 
   // ─── Error handling ────────────────────────────────────

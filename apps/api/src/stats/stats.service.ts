@@ -252,52 +252,61 @@ export class StatsService {
       .map((g) => g.seriesId)
       .filter((id): id is number => id !== null)
     const genreIds = genreGroups.map((g) => g.genreId)
-    const creatorIds = [
-      ...new Set(creatorGroups.map((g) => g.creatorId)),
-    ]
+    const creatorIds = [...new Set(creatorGroups.map((g) => g.creatorId))]
     const characterIds = characterGroups.map((g) => g.characterId)
     const publisherSpendIds = publisherSpendGroups
       .map((g) => g.publisherId)
       .filter((id): id is number => id !== null)
 
-    const [publishers, seriesList, genres, creators, characters, spendPublishers] =
-      await Promise.all([
-        this.prisma.publisher.findMany({
-          where: { id: { in: publisherIds } },
-          select: { id: true, name: true },
-        }),
-        this.prisma.series.findMany({
-          where: { id: { in: seriesIds } },
-          select: { id: true, name: true },
-        }),
-        this.prisma.genre.findMany({
-          where: { id: { in: genreIds } },
-          select: { id: true, name: true },
-        }),
-        this.prisma.creator.findMany({
-          where: { id: { in: creatorIds } },
-          select: { id: true, name: true },
-        }),
-        this.prisma.character.findMany({
-          where: { id: { in: characterIds } },
-          select: { id: true, name: true },
-        }),
-        this.prisma.publisher.findMany({
-          where: { id: { in: publisherSpendIds } },
-          select: { id: true, name: true },
-        }),
-      ])
+    const [
+      publishers,
+      seriesList,
+      genres,
+      creators,
+      characters,
+      spendPublishers,
+    ] = await Promise.all([
+      this.prisma.publisher.findMany({
+        where: { id: { in: publisherIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.series.findMany({
+        where: { id: { in: seriesIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.genre.findMany({
+        where: { id: { in: genreIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.creator.findMany({
+        where: { id: { in: creatorIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.character.findMany({
+        where: { id: { in: characterIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.publisher.findMany({
+        where: { id: { in: publisherSpendIds } },
+        select: { id: true, name: true },
+      }),
+    ])
 
     const publisherMap = new Map(publishers.map((p) => [p.id, p.name]))
     const seriesMap = new Map(seriesList.map((s) => [s.id, s.name]))
     const genreMap = new Map(genres.map((g) => [g.id, g.name]))
     const creatorMap = new Map(creators.map((c) => [c.id, c.name]))
     const characterMap = new Map(characters.map((c) => [c.id, c.name]))
-    const spendPublisherMap = new Map(spendPublishers.map((p) => [p.id, p.name]))
+    const spendPublisherMap = new Map(
+      spendPublishers.map((p) => [p.id, p.name])
+    )
 
     const comicsByPublisher = mergePublisherVariants(
       resolveNames(
-        publisherGroups.map((g) => ({ id: g.publisherId!, count: g._count.id })),
+        publisherGroups.map((g) => ({
+          id: g.publisherId!,
+          count: g._count.id,
+        })),
         publisherMap
       )
     )

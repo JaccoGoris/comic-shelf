@@ -14,6 +14,7 @@ import { UsersModule } from '../users/users.module'
 import { BackupModule } from '../backup/backup.module'
 import { SettingsModule } from '../settings/settings.module'
 import { StatsModule } from '../stats/stats.module'
+import { TrackedSeriesModule } from '../tracked-series/tracked-series.module'
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { StatsModule } from '../stats/stats.module'
     BackupModule,
     SettingsModule,
     StatsModule,
+    TrackedSeriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

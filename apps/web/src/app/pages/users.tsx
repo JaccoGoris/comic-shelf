@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import {
   Title,
   Table,
-  Button,
   ActionIcon,
   Group,
   Badge,
@@ -21,6 +20,7 @@ import { IconTrash, IconPlus, IconAlertCircle } from '@tabler/icons-react'
 import { getUsers, createUser, deleteUser } from '../../api/client'
 import { useAuth } from '../../auth/auth-context'
 import type { UserDto, UserRole } from '@comic-shelf/shared-types'
+import { CSButton } from '../components/cs-button'
 
 export function UsersPage() {
   const { user: currentUser } = useAuth()
@@ -99,12 +99,12 @@ export function UsersPage() {
     <>
       <Group justify="space-between" mb="md">
         <Title order={2}>Users</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
+        <CSButton
+          rightSection={<IconPlus size={16} />}
           onClick={() => setModalOpen(true)}
         >
           Add User
-        </Button>
+        </CSButton>
       </Group>
 
       {loading ? (
@@ -193,12 +193,12 @@ export function UsersPage() {
               onChange={(v) => setNewRole((v as UserRole) || 'USER')}
             />
             <Group justify="flex-end" mt="xs">
-              <Button variant="default" onClick={() => setModalOpen(false)}>
+              <CSButton variant="default" onClick={() => setModalOpen(false)}>
                 Cancel
-              </Button>
-              <Button type="submit" loading={creating}>
+              </CSButton>
+              <CSButton type="submit" loading={creating}>
                 Create
-              </Button>
+              </CSButton>
             </Group>
           </Stack>
         </form>

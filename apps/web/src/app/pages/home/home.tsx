@@ -4,7 +4,6 @@ import {
   Container,
   Title,
   Text,
-  Button,
   SimpleGrid,
   Paper,
   Group,
@@ -34,6 +33,7 @@ import {
 } from '@tabler/icons-react'
 import { getStats } from '../../../api/client'
 import type { DashboardStatsDto } from '@comic-shelf/shared-types'
+import { CSButton } from '../../components/cs-button'
 import { formatCurrency, formatNumber } from './formatters'
 import { StatCard } from './stat-card'
 import { DonutLegend } from './donut-legend'
@@ -88,14 +88,14 @@ export function HomePage() {
           <Text size="lg" c="dimmed">
             Your collection is empty. Start by adding your first comic!
           </Text>
-          <Button
+          <CSButton
             component={Link}
             to="/comics"
             size="lg"
             leftSection={<IconBooks size={20} />}
           >
             Add Your First Comic
-          </Button>
+          </CSButton>
         </Stack>
       </Container>
     )

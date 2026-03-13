@@ -11,9 +11,12 @@ import {
   getCharacters,
   getGenres,
   getStoryArcs,
+  getMetronSeriesById,
+  createTrackedSeries,
 } from '../../api/client'
 import { TypeaheadField } from '../components/typeahead-field'
 import { TagsInputField } from '../components/tags-input-field'
+import { CSButton } from '../components/cs-button'
 import type {
   ComicDetailDto,
   UpdateComicDto,
@@ -40,8 +43,8 @@ import {
   Loader,
   Center,
   Alert,
-  Anchor,
   Stack,
+  Flex,
 } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
@@ -52,6 +55,8 @@ import {
   IconRefresh,
   IconDeviceFloppy,
   IconPlus,
+  IconLayersLinked,
+  IconEye,
 } from '@tabler/icons-react'
 
 const CREATOR_ROLE_TO_FIELD = {
@@ -130,7 +135,11 @@ function comicToFormValues(comic: ComicDetailDto): ComicFormValues {
       ? comic.purchaseDate.substring(0, 10)
       : null,
     purchasedFrom: comic.purchasedFrom ?? null,
-    collectionWishlist: comic.collectionWishlist ?? null,
+    collectionWishlist:
+      comic.collectionWishlist === 'COLLECTION' ||
+      comic.collectionWishlist === 'WISHLIST'
+        ? comic.collectionWishlist
+        : null,
     notes: comic.notes ?? null,
     gradedBy: comic.gradedBy ?? null,
     gradedRating: comic.gradedRating ?? null,
@@ -243,6 +252,7 @@ export function ComicDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [trackingSeries, setTrackingSeries] = useState(false)
   const [visibleRoles, setVisibleRoles] = useState<CreatorRole[]>([])
   const [roleToAdd, setRoleToAdd] = useState<string | null>(null)
 
@@ -383,6 +393,40 @@ export function ComicDetailPage() {
     }
   }
 
+  const handleTrackSeries = async () => {
+    if (!comic?.series?.metronSeriesId) return
+    setTrackingSeries(true)
+    try {
+      const seriesDetail = await getMetronSeriesById(
+        comic.series.metronSeriesId
+      )
+      await createTrackedSeries({
+        metronSeriesId: seriesDetail.id,
+        name: seriesDetail.name,
+        volume: seriesDetail.volume,
+        publisher: comic.series.publisher?.name ?? null,
+        yearBegan: seriesDetail.yearBegan,
+        issueCount: seriesDetail.issueCount,
+      })
+      notifications.show({
+        title: 'Series Tracked',
+        message: `Now tracking "${seriesDetail.name}".`,
+        color: 'green',
+      })
+      const refreshed = await getComic(comic.id)
+      setComic(refreshed)
+      applyComicToForm(refreshed)
+    } catch {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to track series.',
+        color: 'red',
+      })
+    } finally {
+      setTrackingSeries(false)
+    }
+  }
+
   const handleDelete = () => {
     if (!comic) return
     modals.openConfirmModal({
@@ -496,480 +540,508 @@ export function ComicDetailPage() {
       </Button>
 
       <form onSubmit={form.onSubmit(handleSave)}>
-        {/* Header */}
-        <Group justify="space-between" align="flex-start" mb="lg" wrap="wrap">
-          <Group align="flex-start" gap="lg" wrap="wrap">
-            <Image
-              src={comic.coverImageUrl ?? placeholderImg}
-              w={200}
-              radius="md"
-              fit="cover"
-              alt={comic.title}
-            />
-            <div>
-              <TextInput
-                size="xl"
-                fw={700}
-                placeholder="Title"
-                key={form.key('title')}
-                {...form.getInputProps('title')}
+        <Stack>
+          <Stack w="100%">
+            {/* Header */}
+            <Flex gap="lg">
+              <Image
+                src={comic.coverImageUrl ?? placeholderImg}
+                w={200}
+                radius="md"
+                fit="cover"
+                alt={comic.title}
               />
-              {comic.metronId && (
-                <Anchor
-                  href={`https://metron.cloud/issue/${comic.metronId}/`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  size="sm"
-                  mt={4}
-                >
-                  View on Metron
-                </Anchor>
-              )}
-            </div>
-          </Group>
-          <Group>
-            <Button
-              type="submit"
-              leftSection={<IconDeviceFloppy size={16} />}
-              loading={saving || syncing}
-              disabled={!form.isDirty()}
-            >
-              Save
-            </Button>
-            {!comic.metronId && (
-              <Button
-                variant="outline"
-                leftSection={<IconRefresh size={16} />}
-                onClick={handleSync}
-                loading={syncing}
-              >
-                Sync with Metron
-              </Button>
-            )}
-            <Button
-              color="red"
-              variant="outline"
-              leftSection={<IconTrash size={16} />}
-              onClick={handleDelete}
-            >
-              Delete
-            </Button>
-          </Group>
-        </Group>
+              <Stack gap="md" w="100%">
+                <Stack>
+                  <Title order={4}>Title</Title>
+                  <TextInput
+                    size="xl"
+                    fw={700}
+                    placeholder="Title"
+                    key={form.key('title')}
+                    {...form.getInputProps('title')}
+                  />
+                </Stack>
+                <Stack>
+                  <Title order={4}>Synopsis</Title>
+                  <Textarea
+                    autosize
+                    w="100%"
+                    minRows={5}
+                    placeholder="Synopsis"
+                    key={form.key('synopsis')}
+                    {...form.getInputProps('synopsis')}
+                  />
+                </Stack>
+              </Stack>
+            </Flex>
+            <Paper withBorder p="md" radius="md">
+              <Group gap="lg">
+                <Stack>
+                  <Title order={5}>Actions</Title>
+                  <Group>
+                    <CSButton
+                      type="submit"
+                      rightSection={<IconDeviceFloppy size={16} />}
+                      loading={saving || syncing}
+                      disabled={!form.isDirty()}
+                    >
+                      Save
+                    </CSButton>
+                    <CSButton
+                      color="red"
+                      variant="outline"
+                      rightSection={<IconTrash size={16} />}
+                      onClick={handleDelete}
+                    >
+                      Delete
+                    </CSButton>
+                  </Group>
+                </Stack>
+                <Stack>
+                  <Title order={5}>Metron Actions</Title>
+                  <Group wrap="wrap">
+                    <CSButton
+                      rightSection={<IconRefresh size={16} />}
+                      onClick={handleSync}
+                      loading={syncing}
+                    >
+                      {comic.metronId ? 'Sync' : 'Connect'}
+                    </CSButton>
+                    {comic.trackedSeriesMetronId && (
+                      <CSButton
+                        component={Link}
+                        to={`/series/${comic.trackedSeriesMetronId}`}
+                        rightSection={<IconLayersLinked size={16} />}
+                      >
+                        View Series
+                      </CSButton>
+                    )}
+                    {comic.series?.metronSeriesId &&
+                      !comic.trackedSeriesMetronId && (
+                        <CSButton
+                          rightSection={<IconLayersLinked size={16} />}
+                          onClick={handleTrackSeries}
+                          loading={trackingSeries}
+                        >
+                          Track Series
+                        </CSButton>
+                      )}
+                    {comic.metronId && (
+                      <CSButton
+                        component="a"
+                        href={`https://metron.cloud/issue/${comic.metronId}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        rightSection={<IconEye size={16} />}
+                      >
+                        View on Metron
+                      </CSButton>
+                    )}
+                  </Group>
+                </Stack>
+              </Group>
+            </Paper>
+          </Stack>
 
-        {/* Synopsis */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="xs">
-            Synopsis
-          </Title>
-          <Textarea
-            autosize
-            minRows={2}
-            placeholder="Synopsis"
-            key={form.key('synopsis')}
-            {...form.getInputProps('synopsis')}
-          />
-        </Paper>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            {/* Details */}
+            <Paper withBorder p="md" radius="md">
+              <Title order={3} mb="sm">
+                Details
+              </Title>
+              <Stack gap="xs">
+                <TypeaheadField
+                  label="Publisher"
+                  placeholder="Publisher name"
+                  fetchOptions={fetchPublisherNames}
+                  key={form.key('publisherName')}
+                  {...form.getInputProps('publisherName')}
+                />
+                <TypeaheadField
+                  label="Series"
+                  placeholder="Series name"
+                  fetchOptions={fetchSeriesNames}
+                  key={form.key('seriesName')}
+                  {...form.getInputProps('seriesName')}
+                />
+                <Group grow>
+                  <TextInput
+                    label="Issue #"
+                    placeholder="Issue number"
+                    key={form.key('issueNumber')}
+                    {...form.getInputProps('issueNumber')}
+                  />
+                  <TextInput
+                    label="Volume"
+                    placeholder="Volume"
+                    key={form.key('volume')}
+                    {...form.getInputProps('volume')}
+                  />
+                </Group>
+                <Group grow>
+                  <TextInput
+                    label="Cover Date"
+                    placeholder="e.g. 2024-01"
+                    key={form.key('coverDate')}
+                    {...form.getInputProps('coverDate')}
+                  />
+                  <NumberInput
+                    label="Year"
+                    placeholder="Year"
+                    key={form.key('year')}
+                    {...form.getInputProps('year')}
+                  />
+                </Group>
+                <Group grow>
+                  <TextInput
+                    label="Era"
+                    placeholder="Era"
+                    key={form.key('era')}
+                    {...form.getInputProps('era')}
+                  />
+                  <TextInput
+                    label="Type"
+                    placeholder="Type of comic"
+                    key={form.key('typeOfComic')}
+                    {...form.getInputProps('typeOfComic')}
+                  />
+                </Group>
+                <Group grow>
+                  <TextInput
+                    label="Language"
+                    placeholder="Language"
+                    key={form.key('language')}
+                    {...form.getInputProps('language')}
+                  />
+                  <TextInput
+                    label="Country"
+                    placeholder="Country"
+                    key={form.key('country')}
+                    {...form.getInputProps('country')}
+                  />
+                </Group>
+                <Group grow>
+                  <NumberInput
+                    label="Pages"
+                    placeholder="Number of pages"
+                    key={form.key('numberOfPages')}
+                    {...form.getInputProps('numberOfPages')}
+                  />
+                  <TextInput
+                    label="Printing"
+                    placeholder="Printing"
+                    key={form.key('printing')}
+                    {...form.getInputProps('printing')}
+                  />
+                </Group>
+                <Group grow>
+                  <TextInput
+                    label="Variant"
+                    placeholder="Variant number"
+                    key={form.key('variantNumber')}
+                    {...form.getInputProps('variantNumber')}
+                  />
+                  <TextInput
+                    label="Cover Letter"
+                    placeholder="Cover letter"
+                    key={form.key('coverLetter')}
+                    {...form.getInputProps('coverLetter')}
+                  />
+                </Group>
+                <TextInput
+                  label="Legacy #"
+                  placeholder="Legacy number"
+                  key={form.key('legacyNumber')}
+                  {...form.getInputProps('legacyNumber')}
+                />
+                <TextInput
+                  label="Barcode"
+                  placeholder="Barcode / UPC"
+                  key={form.key('barcode')}
+                  {...form.getInputProps('barcode')}
+                />
+                <Group grow>
+                  <NumberInput
+                    label="Cover Price"
+                    placeholder="0.00"
+                    decimalScale={2}
+                    fixedDecimalScale
+                    prefix="$"
+                    key={form.key('coverPrice')}
+                    {...form.getInputProps('coverPrice')}
+                  />
+                  <TextInput
+                    label="Currency"
+                    placeholder="e.g. USD"
+                    key={form.key('coverPriceCurrency')}
+                    {...form.getInputProps('coverPriceCurrency')}
+                  />
+                </Group>
+              </Stack>
+            </Paper>
 
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mb="lg">
-          {/* Details */}
-          <Paper withBorder p="md" radius="md">
-            <Title order={3} mb="sm">
-              Details
-            </Title>
-            <Stack gap="xs">
-              <TypeaheadField
-                label="Publisher"
-                placeholder="Publisher name"
-                fetchOptions={fetchPublisherNames}
-                key={form.key('publisherName')}
-                {...form.getInputProps('publisherName')}
-              />
-              <TypeaheadField
-                label="Series"
-                placeholder="Series name"
-                fetchOptions={fetchSeriesNames}
-                key={form.key('seriesName')}
-                {...form.getInputProps('seriesName')}
-              />
-              <Group grow>
-                <TextInput
-                  label="Issue #"
-                  placeholder="Issue number"
-                  key={form.key('issueNumber')}
-                  {...form.getInputProps('issueNumber')}
-                />
-                <TextInput
-                  label="Volume"
-                  placeholder="Volume"
-                  key={form.key('volume')}
-                  {...form.getInputProps('volume')}
-                />
-              </Group>
-              <Group grow>
-                <TextInput
-                  label="Cover Date"
-                  placeholder="e.g. 2024-01"
-                  key={form.key('coverDate')}
-                  {...form.getInputProps('coverDate')}
-                />
-                <NumberInput
-                  label="Year"
-                  placeholder="Year"
-                  key={form.key('year')}
-                  {...form.getInputProps('year')}
-                />
-              </Group>
-              <Group grow>
-                <TextInput
-                  label="Era"
-                  placeholder="Era"
-                  key={form.key('era')}
-                  {...form.getInputProps('era')}
-                />
-                <TextInput
-                  label="Type"
-                  placeholder="Type of comic"
-                  key={form.key('typeOfComic')}
-                  {...form.getInputProps('typeOfComic')}
-                />
-              </Group>
-              <Group grow>
-                <TextInput
-                  label="Language"
-                  placeholder="Language"
-                  key={form.key('language')}
-                  {...form.getInputProps('language')}
-                />
-                <TextInput
-                  label="Country"
-                  placeholder="Country"
-                  key={form.key('country')}
-                  {...form.getInputProps('country')}
-                />
-              </Group>
-              <Group grow>
-                <NumberInput
-                  label="Pages"
-                  placeholder="Number of pages"
-                  key={form.key('numberOfPages')}
-                  {...form.getInputProps('numberOfPages')}
-                />
-                <TextInput
-                  label="Printing"
-                  placeholder="Printing"
-                  key={form.key('printing')}
-                  {...form.getInputProps('printing')}
-                />
-              </Group>
-              <Group grow>
-                <TextInput
-                  label="Variant"
-                  placeholder="Variant number"
-                  key={form.key('variantNumber')}
-                  {...form.getInputProps('variantNumber')}
-                />
-                <TextInput
-                  label="Cover Letter"
-                  placeholder="Cover letter"
-                  key={form.key('coverLetter')}
-                  {...form.getInputProps('coverLetter')}
-                />
-              </Group>
-              <TextInput
-                label="Legacy #"
-                placeholder="Legacy number"
-                key={form.key('legacyNumber')}
-                {...form.getInputProps('legacyNumber')}
-              />
-              <TextInput
-                label="Barcode"
-                placeholder="Barcode / UPC"
-                key={form.key('barcode')}
-                {...form.getInputProps('barcode')}
-              />
-              <Group grow>
-                <NumberInput
-                  label="Cover Price"
-                  placeholder="0.00"
-                  decimalScale={2}
-                  fixedDecimalScale
-                  prefix="$"
-                  key={form.key('coverPrice')}
-                  {...form.getInputProps('coverPrice')}
-                />
-                <TextInput
-                  label="Currency"
-                  placeholder="e.g. USD"
-                  key={form.key('coverPriceCurrency')}
-                  {...form.getInputProps('coverPriceCurrency')}
-                />
-              </Group>
-            </Stack>
-          </Paper>
-
-          {/* Collection */}
-          <Paper withBorder p="md" radius="md">
-            <Title order={3} mb="sm">
-              Collection
-            </Title>
-            <Stack gap="xs">
-              <Select
-                label="Status"
-                placeholder="Select status"
-                data={[
-                  { value: 'COLLECTION', label: 'Collection' },
-                  { value: 'WISHLIST', label: 'Wishlist' },
-                ]}
-                clearable
-                key={form.key('collectionWishlist')}
-                {...form.getInputProps('collectionWishlist')}
-              />
-              <Group grow>
-                <NumberInput
-                  label="Purchase Price"
-                  placeholder="0.00"
-                  decimalScale={2}
-                  fixedDecimalScale
-                  prefix="$"
-                  key={form.key('purchasePrice')}
-                  {...form.getInputProps('purchasePrice')}
-                />
-                <TextInput
-                  label="Currency"
-                  placeholder="e.g. USD"
-                  key={form.key('purchasePriceCurrency')}
-                  {...form.getInputProps('purchasePriceCurrency')}
-                />
-              </Group>
-              <TextInput
-                label="Purchase Date"
-                placeholder="YYYY-MM-DD"
-                key={form.key('purchaseDate')}
-                {...form.getInputProps('purchaseDate')}
-              />
-              <TextInput
-                label="Purchased From"
-                placeholder="Store / seller"
-                key={form.key('purchasedFrom')}
-                {...form.getInputProps('purchasedFrom')}
-              />
-              <TextInput
-                label="Condition"
-                placeholder="e.g. Near Mint"
-                key={form.key('condition')}
-                {...form.getInputProps('condition')}
-              />
-              <TextInput
-                label="Storage Location"
-                placeholder="Where it's stored"
-                key={form.key('storageLocation')}
-                {...form.getInputProps('storageLocation')}
-              />
-              <NumberInput
-                label="Quantity"
-                min={1}
-                key={form.key('quantity')}
-                {...form.getInputProps('quantity')}
-              />
-              <TextInput
-                label="Loaned To"
-                placeholder="Person name"
-                key={form.key('loanedTo')}
-                {...form.getInputProps('loanedTo')}
-              />
-              <TextInput
-                label="Signed By"
-                placeholder="Signer name"
-                key={form.key('signedBy')}
-                {...form.getInputProps('signedBy')}
-              />
-              <TextInput
-                label="Personal Rating"
-                placeholder="Your rating"
-                key={form.key('personalRating')}
-                {...form.getInputProps('personalRating')}
-              />
-              <Group>
-                <Checkbox
-                  label="Read"
-                  key={form.key('read')}
-                  {...form.getInputProps('read', { type: 'checkbox' })}
-                />
-                <Checkbox
-                  label="Preordered"
-                  key={form.key('preordered')}
-                  {...form.getInputProps('preordered', { type: 'checkbox' })}
-                />
-                <Checkbox
-                  label="For Sale"
-                  key={form.key('forSale')}
-                  {...form.getInputProps('forSale', { type: 'checkbox' })}
-                />
-              </Group>
-            </Stack>
-          </Paper>
-        </SimpleGrid>
-
-        {/* Creators */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="sm">
-            Creators
-          </Title>
-          <Stack gap="xs">
-            {visibleRoles.map((role) => (
-              <TagsInputField
-                key={form.key(CREATOR_ROLE_TO_FIELD[role])}
-                label={getRoleLabel(role)}
-                placeholder="Type a name..."
-                fetchOptions={fetchCreatorNames}
-                {...form.getInputProps(CREATOR_ROLE_TO_FIELD[role])}
-              />
-            ))}
-            {visibleRoles.length === 0 && availableRolesToAdd.length > 0 && (
-              <Text size="sm" c="dimmed">
-                No creators added. Use the dropdown below to add a role.
-              </Text>
-            )}
-            {availableRolesToAdd.length > 0 && (
-              <Group gap="xs" mt={visibleRoles.length > 0 ? 'xs' : 0}>
+            {/* Collection */}
+            <Paper withBorder p="md" radius="md">
+              <Title order={3} mb="sm">
+                Collection
+              </Title>
+              <Stack gap="xs">
                 <Select
-                  placeholder="Add role..."
-                  data={availableRolesToAdd}
-                  value={roleToAdd}
-                  onChange={setRoleToAdd}
+                  label="Status"
+                  placeholder="Select status"
+                  data={[
+                    { value: 'COLLECTION', label: 'Collection' },
+                    { value: 'WISHLIST', label: 'Wishlist' },
+                  ]}
                   clearable
-                  w={180}
+                  key={form.key('collectionWishlist')}
+                  {...form.getInputProps('collectionWishlist')}
                 />
-                <Button
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconPlus size={14} />}
-                  disabled={!roleToAdd}
-                  onClick={() => {
-                    if (roleToAdd) {
-                      setVisibleRoles((prev) => [
-                        ...prev,
-                        roleToAdd as CreatorRole,
-                      ])
-                      setRoleToAdd(null)
-                    }
-                  }}
-                >
-                  Add Role
-                </Button>
-              </Group>
-            )}
-          </Stack>
-        </Paper>
-
-        {/* Characters */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="sm">
-            Characters
-          </Title>
-          <TagsInputField
-            placeholder="Type a character name..."
-            fetchOptions={fetchCharacterNames}
-            key={form.key('characters')}
-            {...form.getInputProps('characters')}
-          />
-        </Paper>
-
-        {/* Story Arcs */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="sm">
-            Story Arcs
-          </Title>
-          <TagsInputField
-            placeholder="Type a story arc name..."
-            fetchOptions={fetchStoryArcNames}
-            key={form.key('storyArcs')}
-            {...form.getInputProps('storyArcs')}
-          />
-        </Paper>
-
-        {/* Genres */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="sm">
-            Genres
-          </Title>
-          <Stack gap="xs">
-            <TagsInputField
-              label="Genres"
-              placeholder="Type a genre..."
-              fetchOptions={fetchGenreNames}
-              key={form.key('genres')}
-              {...form.getInputProps('genres')}
-            />
-            <TagsInputField
-              label="Subgenres"
-              placeholder="Type a subgenre..."
-              fetchOptions={fetchGenreNames}
-              key={form.key('subgenres')}
-              {...form.getInputProps('subgenres')}
-            />
-          </Stack>
-        </Paper>
-
-        {/* Grading */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="sm">
-            Grading
-          </Title>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
-            <TextInput
-              label="Graded By"
-              placeholder="Grading company"
-              key={form.key('gradedBy')}
-              {...form.getInputProps('gradedBy')}
-            />
-            <TextInput
-              label="Rating"
-              placeholder="Grade rating"
-              key={form.key('gradedRating')}
-              {...form.getInputProps('gradedRating')}
-            />
-            <TextInput
-              label="Label Type"
-              placeholder="Label type"
-              key={form.key('gradedLabelType')}
-              {...form.getInputProps('gradedLabelType')}
-            />
-            <TextInput
-              label="Serial #"
-              placeholder="Serial number"
-              key={form.key('gradedSerialNumber')}
-              {...form.getInputProps('gradedSerialNumber')}
-            />
-            <TextInput
-              label="Page Quality"
-              placeholder="Page quality"
-              key={form.key('pageQuality')}
-              {...form.getInputProps('pageQuality')}
-            />
-            <Textarea
-              label="Grader Notes"
-              placeholder="Notes from grader"
-              key={form.key('graderNotes')}
-              {...form.getInputProps('graderNotes')}
-            />
+                <Group grow>
+                  <NumberInput
+                    label="Purchase Price"
+                    placeholder="0.00"
+                    decimalScale={2}
+                    fixedDecimalScale
+                    prefix="$"
+                    key={form.key('purchasePrice')}
+                    {...form.getInputProps('purchasePrice')}
+                  />
+                  <TextInput
+                    label="Currency"
+                    placeholder="e.g. USD"
+                    key={form.key('purchasePriceCurrency')}
+                    {...form.getInputProps('purchasePriceCurrency')}
+                  />
+                </Group>
+                <TextInput
+                  label="Purchase Date"
+                  placeholder="YYYY-MM-DD"
+                  key={form.key('purchaseDate')}
+                  {...form.getInputProps('purchaseDate')}
+                />
+                <TextInput
+                  label="Purchased From"
+                  placeholder="Store / seller"
+                  key={form.key('purchasedFrom')}
+                  {...form.getInputProps('purchasedFrom')}
+                />
+                <TextInput
+                  label="Condition"
+                  placeholder="e.g. Near Mint"
+                  key={form.key('condition')}
+                  {...form.getInputProps('condition')}
+                />
+                <TextInput
+                  label="Storage Location"
+                  placeholder="Where it's stored"
+                  key={form.key('storageLocation')}
+                  {...form.getInputProps('storageLocation')}
+                />
+                <NumberInput
+                  label="Quantity"
+                  min={1}
+                  key={form.key('quantity')}
+                  {...form.getInputProps('quantity')}
+                />
+                <TextInput
+                  label="Loaned To"
+                  placeholder="Person name"
+                  key={form.key('loanedTo')}
+                  {...form.getInputProps('loanedTo')}
+                />
+                <TextInput
+                  label="Signed By"
+                  placeholder="Signer name"
+                  key={form.key('signedBy')}
+                  {...form.getInputProps('signedBy')}
+                />
+                <TextInput
+                  label="Personal Rating"
+                  placeholder="Your rating"
+                  key={form.key('personalRating')}
+                  {...form.getInputProps('personalRating')}
+                />
+                <Group>
+                  <Checkbox
+                    label="Read"
+                    key={form.key('read')}
+                    {...form.getInputProps('read', { type: 'checkbox' })}
+                  />
+                  <Checkbox
+                    label="Preordered"
+                    key={form.key('preordered')}
+                    {...form.getInputProps('preordered', { type: 'checkbox' })}
+                  />
+                  <Checkbox
+                    label="For Sale"
+                    key={form.key('forSale')}
+                    {...form.getInputProps('forSale', { type: 'checkbox' })}
+                  />
+                </Group>
+              </Stack>
+            </Paper>
           </SimpleGrid>
-        </Paper>
 
-        {/* Notes */}
-        <Paper withBorder p="md" mb="lg" radius="md">
-          <Title order={3} mb="xs">
-            Notes
-          </Title>
-          <Textarea
-            autosize
-            minRows={2}
-            placeholder="Personal notes"
-            key={form.key('notes')}
-            {...form.getInputProps('notes')}
-          />
-        </Paper>
+          {/* Creators */}
+          <Paper withBorder p="md" radius="md">
+            <Title order={3} mb="sm">
+              Creators
+            </Title>
+            <Stack gap="xs">
+              {visibleRoles.map((role) => (
+                <TagsInputField
+                  key={form.key(CREATOR_ROLE_TO_FIELD[role])}
+                  label={getRoleLabel(role)}
+                  placeholder="Type a name..."
+                  fetchOptions={fetchCreatorNames}
+                  {...form.getInputProps(CREATOR_ROLE_TO_FIELD[role])}
+                />
+              ))}
+              {visibleRoles.length === 0 && availableRolesToAdd.length > 0 && (
+                <Text size="sm" c="dimmed">
+                  No creators added. Use the dropdown below to add a role.
+                </Text>
+              )}
+              {availableRolesToAdd.length > 0 && (
+                <Group gap="xs" mt={visibleRoles.length > 0 ? 'xs' : 0}>
+                  <Select
+                    placeholder="Add role..."
+                    data={availableRolesToAdd}
+                    value={roleToAdd}
+                    onChange={setRoleToAdd}
+                    clearable
+                    w={180}
+                  />
+                  <CSButton
+                    rightSection={<IconPlus size={14} />}
+                    disabled={!roleToAdd}
+                    onClick={() => {
+                      if (roleToAdd) {
+                        setVisibleRoles((prev) => [
+                          ...prev,
+                          roleToAdd as CreatorRole,
+                        ])
+                        setRoleToAdd(null)
+                      }
+                    }}
+                  >
+                    Add Role
+                  </CSButton>
+                </Group>
+              )}
+            </Stack>
+          </Paper>
+
+          {/* Characters */}
+          <Paper withBorder p="md" radius="md">
+            <Title order={3} mb="sm">
+              Characters
+            </Title>
+            <TagsInputField
+              placeholder="Type a character name..."
+              fetchOptions={fetchCharacterNames}
+              key={form.key('characters')}
+              {...form.getInputProps('characters')}
+            />
+          </Paper>
+
+          {/* Story Arcs */}
+          <Paper withBorder p="md" radius="md">
+            <Title order={3} mb="sm">
+              Story Arcs
+            </Title>
+            <TagsInputField
+              placeholder="Type a story arc name..."
+              fetchOptions={fetchStoryArcNames}
+              key={form.key('storyArcs')}
+              {...form.getInputProps('storyArcs')}
+            />
+          </Paper>
+
+          {/* Genres */}
+          <Paper withBorder p="md" radius="md">
+            <Title order={3} mb="sm">
+              Genres
+            </Title>
+            <Stack gap="xs">
+              <TagsInputField
+                label="Genres"
+                placeholder="Type a genre..."
+                fetchOptions={fetchGenreNames}
+                key={form.key('genres')}
+                {...form.getInputProps('genres')}
+              />
+              <TagsInputField
+                label="Subgenres"
+                placeholder="Type a subgenre..."
+                fetchOptions={fetchGenreNames}
+                key={form.key('subgenres')}
+                {...form.getInputProps('subgenres')}
+              />
+            </Stack>
+          </Paper>
+
+          {/* Grading */}
+          <Paper withBorder p="md" radius="md">
+            <Title order={3} mb="sm">
+              Grading
+            </Title>
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
+              <TextInput
+                label="Graded By"
+                placeholder="Grading company"
+                key={form.key('gradedBy')}
+                {...form.getInputProps('gradedBy')}
+              />
+              <TextInput
+                label="Rating"
+                placeholder="Grade rating"
+                key={form.key('gradedRating')}
+                {...form.getInputProps('gradedRating')}
+              />
+              <TextInput
+                label="Label Type"
+                placeholder="Label type"
+                key={form.key('gradedLabelType')}
+                {...form.getInputProps('gradedLabelType')}
+              />
+              <TextInput
+                label="Serial #"
+                placeholder="Serial number"
+                key={form.key('gradedSerialNumber')}
+                {...form.getInputProps('gradedSerialNumber')}
+              />
+              <TextInput
+                label="Page Quality"
+                placeholder="Page quality"
+                key={form.key('pageQuality')}
+                {...form.getInputProps('pageQuality')}
+              />
+              <Textarea
+                label="Grader Notes"
+                placeholder="Notes from grader"
+                key={form.key('graderNotes')}
+                {...form.getInputProps('graderNotes')}
+              />
+            </SimpleGrid>
+          </Paper>
+
+          {/* Notes */}
+          <Paper withBorder p="md" radius="md">
+            <Title order={3} mb="xs">
+              Notes
+            </Title>
+            <Textarea
+              autosize
+              minRows={2}
+              placeholder="Personal notes"
+              key={form.key('notes')}
+              {...form.getInputProps('notes')}
+            />
+          </Paper>
+        </Stack>
       </form>
     </Container>
   )

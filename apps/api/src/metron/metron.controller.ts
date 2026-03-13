@@ -15,6 +15,22 @@ import { MetronService } from './metron.service'
 export class MetronController {
   constructor(private readonly metronService: MetronService) {}
 
+  @Get('series/search')
+  async searchSeries(
+    @Query('name') name: string,
+    @Query('publisher_name') publisherName?: string
+  ) {
+    if (!name?.trim()) {
+      throw new BadRequestException('Provide a series name to search.')
+    }
+    return this.metronService.searchSeries(name.trim(), publisherName?.trim())
+  }
+
+  @Get('series/:id')
+  getSeriesById(@Param('id', ParseIntPipe) id: number) {
+    return this.metronService.getSeriesById(id)
+  }
+
   @Get('search')
   async search(
     @Query('upc') upc?: string,
@@ -63,8 +79,8 @@ export class MetronController {
 
   @Post('sync')
   @HttpCode(202)
-  async startSync() {
-    return this.metronService.startSync()
+  async startSync(@Query('force') force?: string) {
+    return this.metronService.startSync(force === 'true')
   }
 
   @Get('sync/status')

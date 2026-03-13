@@ -46,7 +46,7 @@ export type CreatorRole =
 
 export type GenreType = 'GENRE' | 'SUBGENRE'
 
-export type CollectionType = 'COLLECTION' | 'WISHLIST'
+export type CollectionType = 'COLLECTION' | 'WISHLIST' | 'MISSING'
 
 // ─── API Response Types ──────────────────────────────────
 
@@ -59,6 +59,7 @@ export interface SeriesDto {
   id: number
   name: string
   publisher?: PublisherDto | null
+  metronSeriesId?: number | null
 }
 
 export interface StoryArcDto {
@@ -108,6 +109,7 @@ export interface ComicListItemDto {
   typeOfComic?: string | null
   metronId?: number | null
   coverImageUrl?: string | null
+  collectionWishlist?: CollectionType | null
 }
 
 export interface ComicDetailDto extends ComicListItemDto {
@@ -154,6 +156,7 @@ export interface ComicDetailDto extends ComicListItemDto {
   collectionName?: string | null
   dateAdded?: string | null
   collectionWishlist?: CollectionType | null
+  trackedSeriesMetronId?: number | null
   storyArcs: StoryArcDto[]
   creators: ComicCreatorDto[]
   characters: CharacterDto[]
@@ -532,4 +535,40 @@ export interface UpdateComicDto {
   characters?: { name: string }[]
   storyArcs?: { name: string }[]
   genres?: { name: string; type: GenreType }[]
+}
+
+// ─── Series Tracker ─────────────────────────────────────
+
+export interface MetronSeriesSearchResultDto {
+  id: number
+  name: string
+  volume: number
+  yearBegan: number
+  issueCount: number
+}
+
+export interface TrackedSeriesDto {
+  id: number
+  metronSeriesId: number
+  name: string
+  volume: number | null
+  publisher: string | null
+  yearBegan: number | null
+  issueCount: number | null
+  ownedCount: number
+  missingCount: number
+  createdAt: string
+}
+
+export interface CreateTrackedSeriesDto {
+  metronSeriesId: number
+  name: string
+  volume?: number | null
+  publisher?: string | null
+  yearBegan?: number | null
+  issueCount?: number | null
+}
+
+export interface SeriesIssueDto extends ComicListItemDto {
+  collectionType: 'COLLECTION' | 'MISSING'
 }

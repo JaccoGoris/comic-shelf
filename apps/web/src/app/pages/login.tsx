@@ -6,13 +6,13 @@ import {
   Title,
   TextInput,
   PasswordInput,
-  Button,
   Stack,
   Text,
   Alert,
 } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useAuth } from '../../auth/auth-context'
+import { CSButton } from '../components/cs-button'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -66,9 +66,9 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.currentTarget.value)}
                 required
               />
-              <Button type="submit" loading={loading} fullWidth mt="xs">
+              <CSButton type="submit" loading={loading} fullWidth mt="xs">
                 Sign in
-              </Button>
+              </CSButton>
             </Stack>
           </form>
         </Stack>

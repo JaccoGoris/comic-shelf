@@ -15,6 +15,13 @@ import { AuthProvider } from './auth/auth-context'
 
 const theme = createTheme({
   primaryColor: 'violet',
+  components: {
+    Modal: {
+      defaultProps: {
+        p: 'xl',
+      },
+    },
+  },
 })
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)

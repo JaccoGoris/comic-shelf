@@ -34,6 +34,9 @@
 - **Confirmations**: Use `modals.openConfirmModal()` for destructive actions.
 - **Loading states**: Use `Loader` or `Skeleton` components.
 - **Lists/Grids**: Use `SimpleGrid` for responsive grid layouts, `Card` for items.
+- **Buttons**: Use `CSButton` from `apps/web/src/app/components/cs-button.tsx` for all action and form buttons.
+  Defaults to `justify="space-between"` and `miw={160}`. Only use plain Mantine `Button` for
+  back/navigation links (`variant="subtle"`), icon-only buttons, or `size="xs"` small buttons.
 
 ## Tech Stack
 

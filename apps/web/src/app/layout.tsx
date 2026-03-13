@@ -18,6 +18,7 @@ import { notifications } from '@mantine/notifications'
 import {
   IconSun,
   IconMoon,
+  IconDeviceDesktop,
   IconSearch,
   IconDashboard,
   IconBooks,
@@ -25,21 +26,27 @@ import {
   IconUser,
   IconLogout,
   IconRefresh,
+  IconLayersLinked,
 } from '@tabler/icons-react'
 import { useAuth } from '../auth/auth-context'
 
 export function Layout() {
   const [opened, { toggle, close }] = useDisclosure()
   const [search, setSearch] = useState('')
-  const { setColorScheme } = useMantineColorScheme()
+  const { setColorScheme, colorScheme } = useMantineColorScheme()
   const computedColorScheme = useComputedColorScheme('light')
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const toggleColorScheme = () => {
-    setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')
-  }
+  const colorSchemeIcon =
+    colorScheme === 'auto' ? (
+      <IconDeviceDesktop size={18} />
+    ) : computedColorScheme === 'light' ? (
+      <IconSun size={18} />
+    ) : (
+      <IconMoon size={18} />
+    )
 
   const handleLogout = async () => {
     await logout()
@@ -58,6 +65,7 @@ export function Layout() {
 
   const collectionItems = [
     { label: 'Browse', icon: IconBooks, to: '/comics' },
+    { label: 'Series', icon: IconLayersLinked, to: '/series' },
     { label: 'Sync', icon: IconRefresh, to: '/sync' },
   ]
 
@@ -114,18 +122,40 @@ export function Layout() {
             >
               v{__APP_VERSION__}
             </Text>
-            <ActionIcon
-              variant="default"
-              size="lg"
-              onClick={toggleColorScheme}
-              aria-label="Toggle color scheme"
-            >
-              {computedColorScheme === 'light' ? (
-                <IconMoon size={18} />
-              ) : (
-                <IconSun size={18} />
-              )}
-            </ActionIcon>
+            <Menu shadow="md" width={160}>
+              <Menu.Target>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  aria-label="Color scheme"
+                >
+                  {colorSchemeIcon}
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconSun size={14} />}
+                  onClick={() => setColorScheme('light')}
+                  fw={colorScheme === 'light' ? 700 : undefined}
+                >
+                  Light
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconMoon size={14} />}
+                  onClick={() => setColorScheme('dark')}
+                  fw={colorScheme === 'dark' ? 700 : undefined}
+                >
+                  Dark
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconDeviceDesktop size={14} />}
+                  onClick={() => setColorScheme('auto')}
+                  fw={colorScheme === 'auto' ? 700 : undefined}
+                >
+                  System
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
             <Menu shadow="md" width={200}>
               <Menu.Target>
                 <ActionIcon variant="default" size="lg" aria-label="User menu">
@@ -178,7 +208,9 @@ export function Layout() {
             active={
               location.pathname === item.to ||
               (item.to === '/comics' &&
-                location.pathname.startsWith('/comics/'))
+                location.pathname.startsWith('/comics/')) ||
+              (item.to === '/series' &&
+                location.pathname.startsWith('/series/'))
             }
             onClick={close}
           />

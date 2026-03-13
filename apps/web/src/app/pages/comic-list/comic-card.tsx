@@ -1,10 +1,19 @@
 import { ComicListItemDto } from '@comic-shelf/shared-types'
-import { Card, Image, Group, Badge, Text } from '@mantine/core'
+import { Card, Image, Group, Badge, Text, ActionIcon } from '@mantine/core'
+import { IconPlus } from '@tabler/icons-react'
 import placeholderImg from '../../../assets/comic-card-placeholder.webp'
 import { formatPrice } from '../../../utils/format'
 import { Link } from 'react-router-dom'
 
-export function ComicCard({ comic }: { comic: ComicListItemDto }) {
+interface ComicCardProps {
+  comic: ComicListItemDto
+  onAcquire?: (id: number) => void
+  acquiring?: boolean
+}
+
+export function ComicCard({ comic, onAcquire, acquiring }: ComicCardProps) {
+  const isMissing = comic.collectionWishlist === 'MISSING'
+
   return (
     <Card
       component={Link}
@@ -32,6 +41,7 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
             width: '100%',
             height: '100%',
             objectPosition: 'center',
+            filter: isMissing ? 'grayscale(100%) opacity(0.5)' : undefined,
           }}
         />
       ) : (
@@ -45,7 +55,9 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
             width: '100%',
             height: '100%',
             objectPosition: 'center',
-            filter: ' contrast(30%) brightness(120%)',
+            filter: isMissing
+              ? 'grayscale(100%) opacity(0.5)'
+              : ' contrast(30%) brightness(120%)',
           }}
         />
       )}
@@ -64,7 +76,11 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
           <Badge color="violet" size="md">
             #{comic.issueNumber ?? '—'}
           </Badge>
-          {comic.read ? (
+          {isMissing ? (
+            <Badge color="orange" size="md">
+              Missing
+            </Badge>
+          ) : comic.read ? (
             <Badge color="green" size="md">
               Read
             </Badge>
@@ -90,7 +106,7 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
           </Text>
         </Group>
       </div>
-      {(!comic.volume || !comic.issueNumber) && (
+      {(!comic.volume || !comic.issueNumber) && !isMissing && (
         <Group
           justify="center"
           style={{
@@ -106,6 +122,24 @@ export function ComicCard({ comic }: { comic: ComicListItemDto }) {
             More info required
           </Badge>
         </Group>
+      )}
+      {isMissing && onAcquire && (
+        <ActionIcon
+          size="md"
+          color="violet"
+          variant="filled"
+          radius="xl"
+          style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onAcquire(comic.id)
+          }}
+          loading={acquiring}
+          aria-label="Acquire this issue"
+        >
+          <IconPlus size={14} />
+        </ActionIcon>
       )}
     </Card>
   )

@@ -6,6 +6,8 @@ import {
   getSeries,
   getSettings,
   updateSettings,
+  updateComic,
+  syncSingleComic,
   type ComicFilters,
 } from '../../../api/client'
 import type {
@@ -36,12 +38,14 @@ import {
   IconPlus,
   IconChevronDown,
   IconPencil,
+  IconAtom,
 } from '@tabler/icons-react'
 import { getErrorMessage } from '../../../utils/error'
 import { PAGE_SIZE } from '../../../utils/constants'
 import { ComicCard } from './comic-card'
 import { CreateComicModal } from '../../components/create-comic-modal'
 import { MetronAddModal } from '../metron-add'
+import { CSButton } from '../../components/cs-button'
 
 export function ComicsListPage() {
   const navigate = useNavigate()
@@ -67,6 +71,7 @@ export function ComicsListPage() {
   const [searchInput, setSearchInput] = useState(
     searchParams.get('search') ?? ''
   )
+  const [acquiringIds, setAcquiringIds] = useState<Set<number>>(new Set())
 
   const pageRef = useRef(1)
 
@@ -296,10 +301,43 @@ export function ComicsListPage() {
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
   }, [comics, groupBy])
 
+  const handleAcquire = async (id: number) => {
+    setAcquiringIds((prev) => new Set(prev).add(id))
+    try {
+      await updateComic(id, { collectionWishlist: 'COLLECTION' })
+      await syncSingleComic(id)
+      notifications.show({
+        title: 'Issue Acquired',
+        message: 'Issue added to your collection and synced with Metron.',
+        color: 'green',
+      })
+      await fetchComics()
+    } catch {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to acquire issue.',
+        color: 'red',
+      })
+    } finally {
+      setAcquiringIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
   const renderGrid = (items: ComicListItemDto[]) => (
     <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
       {items.map((comic) => (
-        <ComicCard key={comic.id} comic={comic} />
+        <ComicCard
+          key={comic.id}
+          comic={comic}
+          onAcquire={
+            comic.collectionWishlist === 'MISSING' ? handleAcquire : undefined
+          }
+          acquiring={acquiringIds.has(comic.id)}
+        />
       ))}
     </SimpleGrid>
   )
@@ -336,12 +374,12 @@ export function ComicsListPage() {
         )}
         <Group>
           <Button.Group>
-            <Button
-              leftSection={<IconPlus size={16} />}
+            <CSButton
+              rightSection={<IconPlus size={16} />}
               onClick={openCreateModal}
             >
               Add Comic
-            </Button>
+            </CSButton>
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
                 <Button px="xs">
@@ -350,7 +388,7 @@ export function ComicsListPage() {
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item
-                  leftSection={<IconSearch size={14} />}
+                  rightSection={<IconAtom size={14} />}
                   onClick={openMetronModal}
                 >
                   Add from Metron
@@ -424,26 +462,21 @@ export function ComicsListPage() {
         <Stack gap="xl">
           {seriesGrouped.map((group) => (
             <div key={group.series}>
-              <Divider
-                label={
-                  <Text
-                    fw={700}
-                    size="md"
-                    c={
-                      group.series === 'More info needed' ? 'orange' : undefined
-                    }
-                  >
-                    {group.series}
-                  </Text>
-                }
-                labelPosition="left"
-                mb="sm"
-              />
+              <Group gap="xs" mb="sm" align="center">
+                <Text
+                  fw={700}
+                  size="md"
+                  c={group.series === 'More info needed' ? 'orange' : undefined}
+                >
+                  {group.series}
+                </Text>
+                <Divider style={{ flex: 1 }} />
+              </Group>
               <Stack gap="md" ml="md">
                 {group.volumes.map((vol) => (
                   <div key={vol.volume}>
                     {vol.volume && (
-                      <Text size="sm" fw={500} c="dimmed" mb="xs">
+                      <Text size="sm" fw={600} mb="xs">
                         {vol.volume} ({vol.comics.length})
                       </Text>
                     )}

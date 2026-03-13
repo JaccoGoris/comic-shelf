@@ -26,6 +26,10 @@ import type {
   SiteSettingsDto,
   UpdateSiteSettingsDto,
   DashboardStatsDto,
+  MetronSeriesSearchResultDto,
+  TrackedSeriesDto,
+  CreateTrackedSeriesDto,
+  SeriesIssueDto,
 } from '@comic-shelf/shared-types'
 
 const api = axios.create({
@@ -263,8 +267,8 @@ export async function importMetronIssue(
   return data
 }
 
-export async function startMetronSync(): Promise<MetronSyncStatusDto> {
-  const { data } = await api.post('/metron/sync')
+export async function startMetronSync(force = false): Promise<MetronSyncStatusDto> {
+  const { data } = await api.post('/metron/sync', null, { params: force ? { force: 'true' } : undefined })
   return data
 }
 
@@ -282,5 +286,45 @@ export async function syncSingleComic(
   comicId: number
 ): Promise<MetronSingleSyncResultDto> {
   const { data } = await api.post(`/metron/sync/${comicId}`)
+  return data
+}
+
+// ─── Series Tracker ──────────────────────────────────────
+
+export async function searchMetronSeries(params: {
+  name: string
+  publisher_name?: string
+}): Promise<MetronSeriesSearchResultDto[]> {
+  const { data } = await api.get('/metron/series/search', { params })
+  return data
+}
+
+export async function getMetronSeriesById(
+  id: number
+): Promise<MetronSeriesSearchResultDto> {
+  const { data } = await api.get(`/metron/series/${id}`)
+  return data
+}
+
+export async function getTrackedSeries(): Promise<TrackedSeriesDto[]> {
+  const { data } = await api.get('/tracked-series')
+  return data
+}
+
+export async function createTrackedSeries(
+  dto: CreateTrackedSeriesDto
+): Promise<TrackedSeriesDto> {
+  const { data } = await api.post('/tracked-series', dto)
+  return data
+}
+
+export async function deleteTrackedSeries(id: number): Promise<void> {
+  await api.delete(`/tracked-series/${id}`)
+}
+
+export async function getTrackedSeriesIssues(
+  metronSeriesId: number
+): Promise<SeriesIssueDto[]> {
+  const { data } = await api.get(`/tracked-series/${metronSeriesId}/issues`)
   return data
 }

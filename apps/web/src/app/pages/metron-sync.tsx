@@ -9,7 +9,6 @@ import {
   Container,
   Title,
   Text,
-  Button,
   Group,
   Stack,
   Progress,
@@ -23,11 +22,14 @@ import {
 } from '@tabler/icons-react'
 import { getErrorMessage } from '../../utils/error'
 import { SYNC_POLL_INTERVAL_MS } from '../../utils/constants'
+import { CSButton } from '../components/cs-button'
 
 export function MetronSyncPage() {
   const [syncStatus, setSyncStatus] = useState<MetronSyncStatusDto | null>(null)
-  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncMissingLoading, setSyncMissingLoading] = useState(false)
+  const [syncAllLoading, setSyncAllLoading] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [stopping, setStopping] = useState(false)
 
   // Initial fetch
   useEffect(() => {
@@ -40,37 +42,45 @@ export function MetronSyncPage() {
 
   // Polling while running
   useEffect(() => {
-    if (!syncStatus?.running) return
+    if (!syncStatus?.running) {
+      setStopping(false)
+      return
+    }
     const id = setInterval(async () => {
       try {
         const status = await getMetronSyncStatus()
         setSyncStatus(status)
         if (!status.running) {
+          setStopping(false)
           clearInterval(id)
         }
       } catch {
+        setStopping(false)
         clearInterval(id)
       }
     }, SYNC_POLL_INTERVAL_MS)
     return () => clearInterval(id)
   }, [syncStatus?.running])
 
-  const handleStartSync = async () => {
-    setSyncLoading(true)
+  const handleStartSync = async (force = false) => {
+    const setLoading = force ? setSyncAllLoading : setSyncMissingLoading
+    setLoading(true)
     setSyncError(null)
     try {
-      setSyncStatus(await startMetronSync())
+      setSyncStatus(await startMetronSync(force))
     } catch (err: unknown) {
       setSyncError(getErrorMessage(err, 'Failed to start sync'))
     } finally {
-      setSyncLoading(false)
+      setLoading(false)
     }
   }
 
   const handleStopSync = async () => {
+    setStopping(true)
     try {
       setSyncStatus(await stopMetronSync())
     } catch (err: unknown) {
+      setStopping(false)
       setSyncError(getErrorMessage(err, 'Failed to stop sync'))
     }
   }
@@ -105,22 +115,33 @@ export function MetronSyncPage() {
 
       <Group mb="lg">
         {syncStatus?.running ? (
-          <Button
-            leftSection={<IconPlayerStop size={16} />}
+          <CSButton
+            rightSection={<IconPlayerStop size={16} />}
             variant="light"
             color="red"
+            loading={stopping}
             onClick={handleStopSync}
           >
             Stop Sync
-          </Button>
+          </CSButton>
         ) : (
-          <Button
-            leftSection={<IconRefresh size={16} />}
-            loading={syncLoading}
-            onClick={handleStartSync}
-          >
-            Start Sync
-          </Button>
+          <>
+            <CSButton
+              rightSection={<IconRefresh size={16} />}
+              loading={syncMissingLoading}
+              onClick={() => handleStartSync(false)}
+            >
+              Sync Missing
+            </CSButton>
+            <CSButton
+              rightSection={<IconRefresh size={16} />}
+              variant="light"
+              loading={syncAllLoading}
+              onClick={() => handleStartSync(true)}
+            >
+              Sync All
+            </CSButton>
+          </>
         )}
       </Group>
 

@@ -29,7 +29,11 @@ export class UpsertService {
     })
   }
 
-  async upsertSeries(name: string, publisherId: number | null) {
+  async upsertSeries(
+    name: string,
+    publisherId: number | null,
+    metronSeriesId?: number
+  ) {
     const trimmed = name.trim()
     return this.prisma.series.upsert({
       where: {
@@ -41,8 +45,9 @@ export class UpsertService {
       create: {
         name: trimmed,
         publisherId,
+        metronSeriesId: metronSeriesId ?? null,
       },
-      update: {},
+      update: metronSeriesId ? { metronSeriesId } : {},
     })
   }
 

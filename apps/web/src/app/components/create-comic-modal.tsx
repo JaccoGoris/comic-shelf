@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Modal, TextInput, Button, Stack, Autocomplete } from '@mantine/core'
+import { Modal, TextInput, Stack, Autocomplete } from '@mantine/core'
 import { useMediaQuery, useDebouncedValue } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import { createComic, getPublishers, getSeries } from '../../api/client'
 import { getErrorMessage } from '../../utils/error'
 import type { PublisherDto } from '@comic-shelf/shared-types'
+import { CSButton } from './cs-button'
 
 interface CreateComicModalProps {
   opened: boolean
@@ -142,14 +143,14 @@ export function CreateComicModal({
             onChange={setSeriesName}
             data={seriesOptions}
           />
-          <Button
+          <CSButton
             type="submit"
             loading={loading}
-            mt="sm"
+            mt="lg"
             disabled={!title.trim()}
           >
             Add Comic
-          </Button>
+          </CSButton>
         </Stack>
       </form>
     </Modal>

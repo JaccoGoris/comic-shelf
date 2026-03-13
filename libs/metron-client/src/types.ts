@@ -86,3 +86,18 @@ export interface MetronIssueSearchParams {
   number?: string
   publisher_name?: string
 }
+
+export interface MetronSeriesListItem {
+  id: number
+  series: string
+  volume: number
+  year_began: number
+  issue_count: number
+  modified: string
+}
+
+export interface MetronSeriesSearchParams {
+  name?: string
+  publisher_name?: string
+  page?: number
+}

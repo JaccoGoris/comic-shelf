@@ -6,6 +6,8 @@ import type {
   MetronIssueListItem,
   MetronIssueSearchParams,
   MetronPaginatedResponse,
+  MetronSeriesListItem,
+  MetronSeriesSearchParams,
 } from './types.js'
 
 export class MetronApiError extends Error {
@@ -52,6 +54,35 @@ export class MetronClient {
     return this.enqueue<MetronIssueDetail>(
       () => this.http.get(`/api/issue/${id}/`),
       'getIssueDetail'
+    )
+  }
+
+  async searchSeries(
+    params: MetronSeriesSearchParams
+  ): Promise<MetronPaginatedResponse<MetronSeriesListItem>> {
+    return this.enqueue<MetronPaginatedResponse<MetronSeriesListItem>>(
+      () => this.http.get('/api/series/', { params }),
+      'searchSeries'
+    )
+  }
+
+  async getSeries(id: number): Promise<MetronSeriesListItem> {
+    return this.enqueue<MetronSeriesListItem>(
+      () => this.http.get(`/api/series/${id}/`),
+      'getSeries'
+    )
+  }
+
+  async getSeriesIssues(
+    metronSeriesId: number,
+    page = 1
+  ): Promise<MetronPaginatedResponse<MetronIssueListItem>> {
+    return this.enqueue<MetronPaginatedResponse<MetronIssueListItem>>(
+      () =>
+        this.http.get('/api/issue/', {
+          params: { series_id: metronSeriesId, page },
+        }),
+      'getSeriesIssues'
     )
   }
 

@@ -12,7 +12,7 @@
 
 import type { BackupComicDto } from '@comic-shelf/shared-types'
 
-export const CURRENT_BACKUP_VERSION = 2
+export const CURRENT_BACKUP_VERSION = 3
 
 type PartialBackupComicDto = Record<string, unknown>
 
@@ -28,11 +28,22 @@ function migrateV1toV2(
   }))
 }
 
+function migrateV2toV3(
+  comics: PartialBackupComicDto[]
+): PartialBackupComicDto[] {
+  return comics.map((comic) => ({
+    ...comic,
+    // Comics without a collectionWishlist default to COLLECTION (safe default for existing data)
+    collectionWishlist: comic['collectionWishlist'] ?? null,
+  }))
+}
+
 const migrations: Record<
   number,
   (comics: PartialBackupComicDto[]) => PartialBackupComicDto[]
 > = {
   1: migrateV1toV2,
+  2: migrateV2toV3,
 }
 
 export function migrateToCurrentVersion(

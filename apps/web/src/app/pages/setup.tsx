@@ -6,13 +6,13 @@ import {
   Title,
   TextInput,
   PasswordInput,
-  Button,
   Stack,
   Text,
   Alert,
 } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useAuth } from '../../auth/auth-context'
+import { CSButton } from '../components/cs-button'
 
 export function SetupPage() {
   const { setup } = useAuth()
@@ -77,9 +77,9 @@ export function SetupPage() {
                 onChange={(e) => setConfirm(e.currentTarget.value)}
                 required
               />
-              <Button type="submit" loading={loading} fullWidth mt="xs">
+              <CSButton type="submit" loading={loading} fullWidth mt="xs">
                 Create Admin Account
-              </Button>
+              </CSButton>
             </Stack>
           </form>
         </Stack>

@@ -5,7 +5,6 @@ import {
   Title,
   Text,
   Tabs,
-  Button,
   Alert,
   Stack,
   List,
@@ -28,6 +27,7 @@ import {
 import { exportBackup, importBackup, importComics } from '../../api/client'
 import { useAuth } from '../../auth/auth-context'
 import { UsersPage } from './users'
+import { CSButton } from '../components/cs-button'
 import type {
   BackupImportResultDto,
   ImportResultDto,
@@ -175,23 +175,25 @@ function DataManagementTab() {
   return (
     <Stack gap="lg">
       {/* Export Section */}
-      <div>
+      <Stack>
         <Title order={3} mb="sm">
           Export Backup
         </Title>
-        <Text c="dimmed" mb="md">
-          Download a full backup of your collection including all relations
-          (publisher, series, creators, characters, story arcs, genres).
-        </Text>
-        <Button
-          onClick={handleExport}
-          loading={exporting}
-          leftSection={<IconDownload size={16} />}
-          size="md"
-        >
-          {exporting ? 'Exporting...' : 'Download Backup'}
-        </Button>
-      </div>
+        <Group wrap="nowrap" gap="lg" align="flex-start">
+          <Text c="dimmed" mb="md">
+            Download a full backup of your collection including all relations
+            (publisher, series, creators, characters, story arcs, genres).
+          </Text>
+          <CSButton
+            miw={200}
+            onClick={handleExport}
+            loading={exporting}
+            rightSection={<IconDownload size={16} />}
+          >
+            {exporting ? 'Exporting...' : 'Download Backup'}
+          </CSButton>
+        </Group>
+      </Stack>
 
       <Divider />
 
@@ -250,7 +252,7 @@ function DataManagementTab() {
           </Group>
         </Dropzone>
 
-        <Button
+        <CSButton
           onClick={handleRestore}
           loading={restoring}
           disabled={!backupFile}
@@ -258,7 +260,7 @@ function DataManagementTab() {
           size="md"
         >
           {restoring ? 'Restoring...' : 'Restore from Backup'}
-        </Button>
+        </CSButton>
 
         {restoreResult && (
           <Alert
@@ -368,7 +370,7 @@ function DataManagementTab() {
           </Group>
         </Dropzone>
 
-        <Button
+        <CSButton
           onClick={handleImport}
           loading={importing}
           disabled={!importFile}
@@ -376,7 +378,7 @@ function DataManagementTab() {
           size="md"
         >
           {importing ? 'Importing...' : 'Import'}
-        </Button>
+        </CSButton>
 
         {importResult && (
           <Alert

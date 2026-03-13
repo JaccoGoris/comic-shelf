@@ -52,6 +52,7 @@ export class ComicsController {
       collectionWishlist: collectionWishlist as
         | 'COLLECTION'
         | 'WISHLIST'
+        | 'MISSING'
         | undefined,
       sortBy: sortBy ?? 'volume',
       sortOrder: (sortOrder as 'asc' | 'desc') ?? 'asc',

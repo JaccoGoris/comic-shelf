@@ -5,4 +5,6 @@ export type {
   MetronIssueListItem,
   MetronIssueDetail,
   MetronIssueSearchParams,
+  MetronSeriesListItem,
+  MetronSeriesSearchParams,
 } from './types.js'

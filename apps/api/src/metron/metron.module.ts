@@ -19,5 +19,6 @@ import { MetronService } from './metron.service'
     },
     MetronService,
   ],
+  exports: [MetronClient, MetronService],
 })
 export class MetronModule {}

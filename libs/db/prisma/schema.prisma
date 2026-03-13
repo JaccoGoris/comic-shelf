@@ -40,6 +40,7 @@ enum GenreType {
 enum CollectionType {
   COLLECTION
   WISHLIST
+  MISSING
 }
 
 // ─── Site Settings ───────────────────────────────────────
@@ -76,14 +77,28 @@ model Publisher {
 }
 
 model Series {
-  id          Int        @id @default(autoincrement())
-  name        String
-  publisherId Int?       @map("publisher_id")
-  publisher   Publisher? @relation(fields: [publisherId], references: [id])
-  comics      Comic[]
+  id             Int        @id @default(autoincrement())
+  name           String
+  publisherId    Int?       @map("publisher_id")
+  publisher      Publisher? @relation(fields: [publisherId], references: [id])
+  comics         Comic[]
+  metronSeriesId Int?       @unique @map("metron_series_id")
 
   @@unique([name, publisherId])
   @@map("series")
+}
+
+model TrackedSeries {
+  id             Int      @id @default(autoincrement())
+  metronSeriesId Int      @unique @map("metron_series_id")
+  name           String
+  volume         Int?
+  publisher      String?
+  yearBegan      Int?     @map("year_began")
+  issueCount     Int?     @map("issue_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("tracked_series")
 }
 
 model StoryArc {

@@ -13,7 +13,7 @@ interface FindAllParams {
   characterId?: number
   genreId?: number
   read?: boolean
-  collectionWishlist?: 'COLLECTION' | 'WISHLIST'
+  collectionWishlist?: 'COLLECTION' | 'WISHLIST' | 'MISSING'
   sortBy: string
   sortOrder: 'asc' | 'desc'
 }
@@ -168,6 +168,10 @@ export class ComicsService {
 
     const where: Prisma.ComicWhereInput = {}
 
+    if (collectionWishlist) {
+      where.collectionWishlist = collectionWishlist
+    }
+
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -179,7 +183,6 @@ export class ComicsService {
     if (publisherId) where.publisherId = publisherId
     if (seriesId) where.seriesId = seriesId
     if (read !== undefined) where.read = read
-    if (collectionWishlist) where.collectionWishlist = collectionWishlist
 
     if (creatorId) {
       where.creators = { some: { creatorId } }
@@ -289,7 +292,16 @@ export class ComicsService {
       throw new NotFoundException(`Comic with id ${id} not found`)
     }
 
-    return serializeComicDetail(comic)
+    let trackedSeriesMetronId: number | null = null
+    if (comic.series?.metronSeriesId) {
+      const tracked = await this.prisma.trackedSeries.findUnique({
+        where: { metronSeriesId: comic.series.metronSeriesId },
+        select: { metronSeriesId: true },
+      })
+      trackedSeriesMetronId = tracked?.metronSeriesId ?? null
+    }
+
+    return { ...serializeComicDetail(comic), trackedSeriesMetronId }
   }
 
   async update(id: number, dto: UpdateComicDto) {

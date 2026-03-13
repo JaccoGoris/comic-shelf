@@ -7,6 +7,8 @@ import { MetronSyncPage } from './pages/metron-sync'
 import { LoginPage } from './pages/login'
 import { SetupPage } from './pages/setup'
 import { SettingsPage } from './pages/settings'
+import { SeriesListPage } from './pages/series/series-list'
+import { SeriesDetailPage } from './pages/series/series-detail'
 import { RequireAuth } from '../auth/require-auth'
 import { RequireSetup } from '../auth/require-setup'
 
@@ -25,6 +27,11 @@ export function App() {
           <Route path="/comics/:id" element={<ComicDetailPage />} />
           <Route path="/sync" element={<MetronSyncPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/series" element={<SeriesListPage />} />
+          <Route
+            path="/series/:metronSeriesId"
+            element={<SeriesDetailPage />}
+          />
         </Route>
       </Route>
     </Routes>

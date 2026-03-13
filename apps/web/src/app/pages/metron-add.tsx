@@ -35,6 +35,7 @@ import {
   IconPlus,
   IconAlertCircle,
 } from '@tabler/icons-react'
+import { CSButton } from '../components/cs-button'
 
 type Step = 'search' | 'results' | 'preview'
 type SearchMode = 'upc' | 'series'
@@ -222,18 +223,18 @@ export function MetronAddModal({
                   placeholder="e.g. 75960620919800111"
                   value={upc}
                   onChange={(e) => setUpc(e.currentTarget.value)}
-                  leftSection={<IconSearch size={16} />}
+                  rightSection={<IconSearch size={16} />}
                   style={{ flex: 1 }}
                   size="md"
                 />
-                <Button
+                <CSButton
                   type="submit"
                   loading={loading}
-                  leftSection={<IconSearch size={16} />}
+                  rightSection={<IconSearch size={16} />}
                   size="md"
                 >
                   Search
-                </Button>
+                </CSButton>
               </Group>
             ) : (
               <Group align="flex-end">
@@ -253,14 +254,14 @@ export function MetronAddModal({
                   w={100}
                   size="md"
                 />
-                <Button
+                <CSButton
                   type="submit"
                   loading={loading}
-                  leftSection={<IconSearch size={16} />}
+                  rightSection={<IconSearch size={16} />}
                   size="md"
                 >
                   Search
-                </Button>
+                </CSButton>
               </Group>
             )}
           </form>
@@ -272,7 +273,7 @@ export function MetronAddModal({
         <>
           <Button
             variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
+            rightSection={<IconArrowLeft size={16} />}
             onClick={handleBack}
             mb="md"
           >
@@ -338,7 +339,7 @@ export function MetronAddModal({
         <>
           <Button
             variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
+            rightSection={<IconArrowLeft size={16} />}
             onClick={handleBack}
             mb="md"
           >
@@ -425,15 +426,15 @@ function PreviewPanel({
             View on Metron
           </Anchor>
 
-          <Button
-            leftSection={<IconPlus size={16} />}
+          <CSButton
+            rightSection={<IconPlus size={16} />}
             loading={importing}
             onClick={onImport}
             size="lg"
             mt="md"
           >
             Add to Collection
-          </Button>
+          </CSButton>
         </Stack>
       </Group>
 
