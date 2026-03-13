@@ -51,6 +51,7 @@ export class BackupController {
 
     let version: number
     let rawComics: Record<string, unknown>[]
+    let rawTrackedSeries: BackupEnvelope['trackedSeries'] = []
 
     if (Array.isArray(parsed)) {
       // v1: bare array
@@ -70,11 +71,14 @@ export class BackupController {
       }
       version = envelope.version
       rawComics = envelope.comics as unknown as Record<string, unknown>[]
+      rawTrackedSeries = Array.isArray(envelope.trackedSeries)
+        ? envelope.trackedSeries
+        : []
     } else {
       throw new BadRequestException('Unrecognised backup format.')
     }
 
     const comics = migrateToCurrentVersion(rawComics, version)
-    return this.backupService.importBackup(comics)
+    return this.backupService.importBackup(comics, rawTrackedSeries)
   }
 }

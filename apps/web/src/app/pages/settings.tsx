@@ -320,9 +320,9 @@ function DataManagementTab() {
           Import Comics
         </Title>
         <Text c="dimmed" mb="md">
-          Upload a JSON file exported from your comic tracking app. The file
-          should contain an array of comic objects. Duplicates (by Item Id) will
-          be skipped automatically.
+          Upload a JSON file exported from iCollect. The file should contain an
+          array of comic objects. Duplicates (by Item Id) will be skipped
+          automatically.
         </Text>
 
         <Dropzone

@@ -26,7 +26,7 @@ function resolveNames(
  */
 function mergePublisherVariants(
   items: NameCountItem[],
-  limit: number = 10
+  limit = 10
 ): NameCountItem[] {
   const canonicalName = (name: string): string => {
     const lower = name.toLowerCase()

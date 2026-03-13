@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService, Prisma } from '@comic-shelf/db'
-import type { BackupComicDto, BackupEnvelope } from '@comic-shelf/shared-types'
+import type {
+  BackupComicDto,
+  BackupEnvelope,
+  BackupTrackedSeriesDto,
+} from '@comic-shelf/shared-types'
 import { CURRENT_BACKUP_VERSION } from './backup-migrations'
 import { UpsertService } from '../shared/upsert.service'
 
@@ -23,10 +27,24 @@ export class BackupService {
   ) {}
 
   async exportAll(): Promise<BackupEnvelope> {
-    const comics = await this.prisma.comic.findMany({
-      include: COMIC_DETAIL_INCLUDE,
-      orderBy: { dateAdded: 'asc' },
-    })
+    const [comics, trackedSeriesRows] = await Promise.all([
+      this.prisma.comic.findMany({
+        include: COMIC_DETAIL_INCLUDE,
+        orderBy: { dateAdded: 'asc' },
+      }),
+      this.prisma.trackedSeries.findMany({ orderBy: { createdAt: 'asc' } }),
+    ])
+
+    const trackedSeriesDtos: BackupTrackedSeriesDto[] = trackedSeriesRows.map(
+      (ts) => ({
+        metronSeriesId: ts.metronSeriesId,
+        name: ts.name,
+        volume: ts.volume,
+        publisher: ts.publisher,
+        yearBegan: ts.yearBegan,
+        issueCount: ts.issueCount,
+      })
+    )
 
     const comicDtos: BackupComicDto[] = comics.map((comic) => ({
       itemId: String(comic.itemId),
@@ -105,13 +123,19 @@ export class BackupService {
       version: CURRENT_BACKUP_VERSION,
       exportedAt: new Date().toISOString(),
       comics: comicDtos,
+      trackedSeries: trackedSeriesDtos,
     }
   }
 
-  async importBackup(entries: BackupComicDto[]) {
+  async importBackup(
+    entries: BackupComicDto[],
+    trackedSeriesEntries: BackupTrackedSeriesDto[] = []
+  ) {
     let created = 0
     let updated = 0
     const errors: string[] = []
+    let trackedSeriesCreated = 0
+    let trackedSeriesUpdated = 0
 
     for (const entry of entries) {
       try {
@@ -278,10 +302,48 @@ export class BackupService {
       }
     }
 
+    for (const ts of trackedSeriesEntries) {
+      try {
+        const existing = await this.prisma.trackedSeries.findUnique({
+          where: { metronSeriesId: ts.metronSeriesId },
+        })
+
+        if (existing) {
+          await this.prisma.trackedSeries.update({
+            where: { metronSeriesId: ts.metronSeriesId },
+            data: {
+              name: ts.name,
+              volume: ts.volume,
+              publisher: ts.publisher,
+              yearBegan: ts.yearBegan,
+              issueCount: ts.issueCount,
+            },
+          })
+          trackedSeriesUpdated++
+        } else {
+          await this.prisma.trackedSeries.create({
+            data: {
+              metronSeriesId: ts.metronSeriesId,
+              name: ts.name,
+              volume: ts.volume,
+              publisher: ts.publisher,
+              yearBegan: ts.yearBegan,
+              issueCount: ts.issueCount,
+            },
+          })
+          trackedSeriesCreated++
+        }
+      } catch (err) {
+        const msg = `Failed to import tracked series "${ts.name}" (metronSeriesId: ${ts.metronSeriesId}): ${err instanceof Error ? err.message : String(err)}`
+        this.logger.warn(msg)
+        errors.push(msg)
+      }
+    }
+
     this.logger.log(
-      `Backup import complete: ${created} created, ${updated} updated, ${errors.length} errors`
+      `Backup import complete: ${created} created, ${updated} updated, ${errors.length} errors, ${trackedSeriesCreated} tracked series created, ${trackedSeriesUpdated} tracked series updated`
     )
 
-    return { created, updated, errors }
+    return { created, updated, errors, trackedSeriesCreated, trackedSeriesUpdated }
   }
 }

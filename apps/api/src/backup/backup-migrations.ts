@@ -12,7 +12,7 @@
 
 import type { BackupComicDto } from '@comic-shelf/shared-types'
 
-export const CURRENT_BACKUP_VERSION = 3
+export const CURRENT_BACKUP_VERSION = 4
 
 type PartialBackupComicDto = Record<string, unknown>
 

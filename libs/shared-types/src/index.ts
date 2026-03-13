@@ -324,16 +324,28 @@ export interface BackupComicDto {
   genres: { name: string; type: GenreType }[]
 }
 
+export interface BackupTrackedSeriesDto {
+  metronSeriesId: number
+  name: string
+  volume: number | null
+  publisher: string | null
+  yearBegan: number | null
+  issueCount: number | null
+}
+
 export interface BackupEnvelope {
   version: number
   exportedAt: string
   comics: BackupComicDto[]
+  trackedSeries?: BackupTrackedSeriesDto[]
 }
 
 export interface BackupImportResultDto {
   created: number
   updated: number
   errors: string[]
+  trackedSeriesCreated: number
+  trackedSeriesUpdated: number
 }
 
 // ─── Dashboard Stats ─────────────────────────────────────
