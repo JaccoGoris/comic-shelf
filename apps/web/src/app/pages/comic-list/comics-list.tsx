@@ -39,6 +39,7 @@ import {
   IconChevronDown,
   IconPencil,
   IconAtom,
+  IconBarcode,
 } from '@tabler/icons-react'
 import { getErrorMessage } from '../../../utils/error'
 import { PAGE_SIZE } from '../../../utils/constants'
@@ -46,6 +47,7 @@ import { ComicCard } from './comic-card'
 import { CreateComicModal } from '../../components/create-comic-modal'
 import { MetronAddModal } from '../metron-add'
 import { CSButton } from '../../components/cs-button'
+import { BarcodeScannerModal } from './components/barcode-scanner-modal'
 
 export function ComicsListPage() {
   const navigate = useNavigate()
@@ -56,6 +58,10 @@ export function ComicsListPage() {
   const [
     metronModalOpened,
     { open: openMetronModal, close: closeMetronModal },
+  ] = useDisclosure(false)
+  const [
+    scannerModalOpened,
+    { open: openScannerModal, close: closeScannerModal },
   ] = useDisclosure(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [comics, setComics] = useState<ComicListItemDto[]>([])
@@ -393,6 +399,12 @@ export function ComicsListPage() {
                 >
                   Add from Metron
                 </Menu.Item>
+                <Menu.Item
+                  rightSection={<IconBarcode size={14} />}
+                  onClick={openScannerModal}
+                >
+                  Scan Barcode
+                </Menu.Item>
               </Menu.Dropdown>
             </Menu>
           </Button.Group>
@@ -547,6 +559,11 @@ export function ComicsListPage() {
         opened={metronModalOpened}
         onClose={closeMetronModal}
         onImported={(comicId) => navigate(`/comics/${comicId}`)}
+      />
+      <BarcodeScannerModal
+        opened={scannerModalOpened}
+        onClose={closeScannerModal}
+        onImported={fetchComics}
       />
     </Container>
   )
