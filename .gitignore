@@ -51,3 +51,4 @@ test-output
 /generated/prisma
 .env
 .nx/polygraph
+pnpm-lock.yaml
