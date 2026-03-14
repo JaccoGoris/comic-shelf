@@ -14,19 +14,37 @@ import {
   Button,
   Box,
   Title,
+  SimpleGrid,
+  Card,
+  Stepper,
 } from '@mantine/core'
 import {
   IconAlertCircle,
   IconCheck,
   IconRefresh,
+  IconArrowLeft,
+  IconBarcode,
 } from '@tabler/icons-react'
-import type { MetronIssueDetailDto } from '@comic-shelf/shared-types'
-import { searchMetron, getMetronIssue, importMetronIssue } from '../../../../api/client'
+import type {
+  MetronSearchResultDto,
+  MetronIssueDetailDto,
+} from '@comic-shelf/shared-types'
+import {
+  searchMetron,
+  getMetronIssue,
+  importMetronIssue,
+} from '../../../../api/client'
 import { getErrorMessage } from '../../../../utils/error'
 import { useBarcodeScanner } from '../hooks/use-barcode-scanner'
 import { CSButton } from '../../../components/cs-button'
 
-type LookupStatus = 'idle' | 'looking-up' | 'found' | 'not-found' | 'error'
+type ModalStep =
+  | 'scanning'
+  | 'looking-up'
+  | 'results'
+  | 'preview'
+  | 'not-found'
+  | 'error'
 
 interface BarcodeScannerModalProps {
   opened: boolean
@@ -41,12 +59,15 @@ export function BarcodeScannerModal({
 }: BarcodeScannerModalProps) {
   const isMobile = useMediaQuery('(max-width: 48em)')
 
-  const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle')
+  const [step, setStep] = useState<ModalStep>('scanning')
   const [lookupError, setLookupError] = useState<string | null>(null)
-  const [comicDetail, setComicDetail] = useState<MetronIssueDetailDto | null>(null)
+  const [results, setResults] = useState<MetronSearchResultDto[]>([])
+  const [comicDetail, setComicDetail] = useState<MetronIssueDetailDto | null>(
+    null
+  )
   const [importing, setImporting] = useState(false)
 
-  // Guard state updates from in-flight API calls after unmount
+  // Guard state updates from in-flight API calls after unmount/reset
   const mountedRef = useRef(true)
   useEffect(() => {
     mountedRef.current = true
@@ -55,60 +76,122 @@ export function BarcodeScannerModal({
     }
   }, [])
 
-  const handleBarcodeDetected = useCallback(async (barcode: string) => {
-    setLookupStatus('looking-up')
+  const {
+    phase,
+    barcodeSet,
+    error: cameraError,
+    isSupported,
+    videoRef,
+    mainHits,
+    supplementHits,
+    startScanning,
+    resetScan,
+  } = useBarcodeScanner()
+
+  // Fix for the restart loop: only react to open/close transitions
+  const prevOpenedRef = useRef(false)
+  useEffect(() => {
+    if (opened && !prevOpenedRef.current) {
+      startScanning()
+    }
+    if (!opened && prevOpenedRef.current) {
+      resetScan()
+      setStep('scanning')
+      setLookupError(null)
+      setResults([])
+      setComicDetail(null)
+    }
+    prevOpenedRef.current = opened
+  }, [opened, startScanning, resetScan])
+
+  // Trigger lookup when scan completes
+  useEffect(() => {
+    if (phase !== 'complete' || !barcodeSet) return
+
+    setStep('looking-up')
     setLookupError(null)
-    setComicDetail(null)
 
-    try {
-      // Search Metron by UPC
-      const results = await searchMetron({ upc: barcode })
-      if (!mountedRef.current) return
+    let cancelled = false
 
-      if (!results || results.length === 0) {
-        setLookupStatus('not-found')
-        return
+    const doLookup = async () => {
+      try {
+        let found: MetronSearchResultDto[] = []
+
+        // Try full UPC (main + supplement) first, then fall back to main only
+        if (cancelled || !mountedRef.current) return
+        const fullResult = await searchMetron({ upc: barcodeSet.fullUpc })
+        if (fullResult && fullResult.length > 0) {
+          found = fullResult
+        } else if (barcodeSet.supplement) {
+          // Fallback: search with main barcode only
+          if (cancelled || !mountedRef.current) return
+          const mainResult = await searchMetron({ upc: barcodeSet.main })
+          if (mainResult && mainResult.length > 0) {
+            found = mainResult
+          }
+        }
+
+        if (cancelled || !mountedRef.current) return
+
+        if (found.length === 0) {
+          setStep('not-found')
+          return
+        }
+
+        if (found.length === 1) {
+          // Auto-proceed to preview for single result
+          const detail = await getMetronIssue(found[0].id)
+          if (cancelled || !mountedRef.current) return
+          setComicDetail(detail)
+          setResults(found)
+          setStep('preview')
+        } else {
+          setResults(found)
+          setStep('results')
+        }
+      } catch (err) {
+        if (cancelled || !mountedRef.current) return
+        setLookupError(
+          getErrorMessage(err, 'Failed to look up comic. Please try again.')
+        )
+        setStep('error')
       }
+    }
 
-      // Fetch full detail of the first result
-      const detail = await getMetronIssue(results[0].id)
+    doLookup()
+
+    return () => {
+      cancelled = true
+    }
+  }, [phase, barcodeSet])
+
+  const handleSelectIssue = useCallback(async (id: number) => {
+    setStep('looking-up')
+    try {
+      const detail = await getMetronIssue(id)
       if (!mountedRef.current) return
-
       setComicDetail(detail)
-      setLookupStatus('found')
+      setStep('preview')
     } catch (err) {
       if (!mountedRef.current) return
-      setLookupError(getErrorMessage(err, 'Failed to look up comic. Please try again.'))
-      setLookupStatus('error')
+      setLookupError(getErrorMessage(err, 'Failed to load comic details.'))
+      setStep('error')
     }
   }, [])
 
-  const { status, detectedBarcode, error: cameraError, isSupported, videoRef, startScanning, resetScan } =
-    useBarcodeScanner(handleBarcodeDetected)
-
-  // Start scanning when modal opens
-  useEffect(() => {
-    if (opened && status === 'idle') {
-      startScanning()
-    }
-  }, [opened, status, startScanning])
-
-  const resetLookup = useCallback(() => {
+  const handleScanAgain = useCallback(() => {
     resetScan()
-    setLookupStatus('idle')
+    setStep('scanning')
     setLookupError(null)
+    setResults([])
     setComicDetail(null)
-  }, [resetScan])
+    startScanning()
+  }, [resetScan, startScanning])
 
   const handleClose = useCallback(() => {
-    resetLookup()
+    resetScan()
     onClose()
-  }, [resetLookup, onClose])
-
-  const handleScanAgain = useCallback(() => {
-    resetLookup()
-    startScanning()
-  }, [resetLookup, startScanning])
+  }, [resetScan, onClose])
 
   const handleImport = useCallback(async () => {
     if (!comicDetail) return
@@ -133,14 +216,16 @@ export function BarcodeScannerModal({
         handleClose()
       } else {
         setLookupError(msg)
-        setLookupStatus('error')
+        setStep('error')
       }
     } finally {
-      setImporting(false)
+      if (mountedRef.current) setImporting(false)
     }
   }, [comicDetail, handleClose, onImported])
 
-  const showCamera = status === 'starting' || status === 'scanning'
+  const showCamera =
+    step === 'scanning' &&
+    (phase === 'starting' || phase === 'scanning' || phase === 'confirming')
 
   return (
     <Modal
@@ -154,8 +239,13 @@ export function BarcodeScannerModal({
       <Stack gap="md">
         {/* Camera not supported */}
         {!isSupported && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" title="Camera Not Supported">
-            Your browser does not support camera access. Try Chrome or Safari on a mobile device.
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="red"
+            title="Camera Not Supported"
+          >
+            Your browser does not support camera access. Try Chrome or Safari on
+            a mobile device.
           </Alert>
         )}
 
@@ -171,7 +261,7 @@ export function BarcodeScannerModal({
         )}
 
         {/* Lookup error */}
-        {lookupError && lookupStatus === 'error' && (
+        {lookupError && step === 'error' && (
           <Alert
             icon={<IconAlertCircle size={16} />}
             color="red"
@@ -183,7 +273,7 @@ export function BarcodeScannerModal({
           </Alert>
         )}
 
-        {/* Camera viewport — shown during scanning phases */}
+        {/* ── Step: Scanning ── */}
         {isSupported && showCamera && (
           <Stack gap="xs">
             <Box
@@ -196,7 +286,6 @@ export function BarcodeScannerModal({
                 overflow: 'hidden',
               }}
             >
-              {/* Video element */}
               <video
                 ref={videoRef}
                 autoPlay
@@ -206,18 +295,12 @@ export function BarcodeScannerModal({
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  display: status === 'starting' ? 'none' : 'block',
+                  display: phase === 'starting' ? 'none' : 'block',
                 }}
               />
 
-              {/* Loader while camera is starting */}
-              {status === 'starting' && (
-                <Center
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                  }}
-                >
+              {phase === 'starting' && (
+                <Center style={{ position: 'absolute', inset: 0 }}>
                   <Stack align="center" gap="xs">
                     <Loader color="violet" size="lg" />
                     <Text size="sm" c="dimmed">
@@ -227,8 +310,7 @@ export function BarcodeScannerModal({
                 </Center>
               )}
 
-              {/* SVG overlay with scan window */}
-              {status === 'scanning' && (
+              {(phase === 'scanning' || phase === 'confirming') && (
                 <svg
                   style={{
                     position: 'absolute',
@@ -240,11 +322,17 @@ export function BarcodeScannerModal({
                   viewBox="0 0 400 300"
                   preserveAspectRatio="xMidYMid slice"
                 >
-                  {/* Dark mask with cutout */}
                   <defs>
                     <mask id="scan-mask">
                       <rect width="400" height="300" fill="white" />
-                      <rect x="60" y="110" width="280" height="80" rx="4" fill="black" />
+                      <rect
+                        x="60"
+                        y="110"
+                        width="280"
+                        height="80"
+                        rx="4"
+                        fill="black"
+                      />
                     </mask>
                   </defs>
                   <rect
@@ -253,7 +341,6 @@ export function BarcodeScannerModal({
                     fill="rgba(0,0,0,0.55)"
                     mask="url(#scan-mask)"
                   />
-                  {/* Animated border around scan window */}
                   <rect
                     x="60"
                     y="110"
@@ -261,7 +348,11 @@ export function BarcodeScannerModal({
                     height="80"
                     rx="4"
                     fill="none"
-                    stroke="var(--mantine-color-violet-4)"
+                    stroke={
+                      phase === 'confirming'
+                        ? 'var(--mantine-color-green-4)'
+                        : 'var(--mantine-color-violet-4)'
+                    }
                     strokeWidth="2"
                   >
                     <animate
@@ -271,13 +362,16 @@ export function BarcodeScannerModal({
                       repeatCount="indefinite"
                     />
                   </rect>
-                  {/* Scanning line animation */}
                   <line
                     x1="64"
                     y1="150"
                     x2="336"
                     y2="150"
-                    stroke="var(--mantine-color-violet-5)"
+                    stroke={
+                      phase === 'confirming'
+                        ? 'var(--mantine-color-green-5)'
+                        : 'var(--mantine-color-violet-5)'
+                    }
                     strokeWidth="1.5"
                     strokeOpacity="0.8"
                   >
@@ -304,114 +398,186 @@ export function BarcodeScannerModal({
               )}
             </Box>
 
-            {status === 'scanning' && (
-              <Text size="sm" c="dimmed" ta="center">
-                Point the barcode at the rectangle to scan
-              </Text>
+            {(phase === 'scanning' || phase === 'confirming') && (
+              <Stack align="center" gap="xs">
+                <Stepper
+                  active={phase === 'scanning' ? mainHits : supplementHits}
+                  size="xs"
+                  color={phase === 'confirming' ? 'green' : 'violet'}
+                >
+                  {[0, 1, 2].map((i) => (
+                    <Stepper.Step
+                      key={i}
+                      icon={<IconBarcode size={14} />}
+                      completedIcon={<IconCheck size={14} />}
+                    />
+                  ))}
+                </Stepper>
+                <Text size="sm" c="dimmed" ta="center">
+                  {phase === 'scanning'
+                    ? 'Scanning main barcode...'
+                    : 'Looking for supplement barcode...'}
+                </Text>
+                {phase === 'confirming' && (
+                  <Badge variant="light" color="green" size="sm">
+                    Main: {barcodeSet?.main ?? ''}
+                  </Badge>
+                )}
+              </Stack>
             )}
           </Stack>
         )}
 
-        {/* Barcode detected — looking up */}
-        {detectedBarcode && lookupStatus === 'looking-up' && (
+        {/* ── Step: Looking up ── */}
+        {step === 'looking-up' && (
           <Center py="xl">
             <Stack align="center" gap="md">
               <Loader color="violet" size="lg" />
               <Stack align="center" gap="xs">
                 <Text fw={600}>Barcode detected</Text>
                 <Badge variant="light" color="violet" size="lg">
-                  {detectedBarcode}
+                  {barcodeSet?.fullUpc}
                 </Badge>
-                <Text size="sm" c="dimmed">Looking up comic on Metron...</Text>
+                <Text size="sm" c="dimmed">
+                  Looking up comic on Metron...
+                </Text>
               </Stack>
             </Stack>
           </Center>
         )}
 
-        {/* Comic not found */}
-        {lookupStatus === 'not-found' && (
-          <Stack align="center" gap="md" py="md">
-            <Alert icon={<IconAlertCircle size={16} />} color="orange" title="No Comic Found" w="100%">
-              No comic was found for barcode <strong>{detectedBarcode}</strong>. The barcode may not be in the Metron database.
-            </Alert>
-            <CSButton
-              leftSection={<IconRefresh size={16} />}
-              variant="light"
-              onClick={handleScanAgain}
-            >
-              Scan Again
-            </CSButton>
+        {/* ── Step: Results (multiple matches) ── */}
+        {step === 'results' && (
+          <Stack gap="md">
+            <Text size="sm" c="dimmed">
+              {results.length} result{results.length !== 1 ? 's' : ''} found —
+              pick one
+            </Text>
+            <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="md">
+              {results.map((issue) => (
+                <Card
+                  key={issue.id}
+                  shadow="sm"
+                  padding="sm"
+                  radius="md"
+                  withBorder
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleSelectIssue(issue.id)}
+                >
+                  {issue.image && (
+                    <Card.Section>
+                      <Image
+                        src={issue.image}
+                        h={200}
+                        fit="cover"
+                        alt={issue.issue}
+                      />
+                    </Card.Section>
+                  )}
+                  <Stack gap="xs" mt="sm">
+                    <Text fw={600} size="sm" lineClamp={2}>
+                      {issue.issue}
+                    </Text>
+                    <Text size="xs" c="violet">
+                      {issue.series.name} (Vol. {issue.series.volume},{' '}
+                      {issue.series.yearBegan})
+                    </Text>
+                    <Group gap="xs">
+                      <Badge variant="light" size="sm">
+                        #{issue.number}
+                      </Badge>
+                      <Text size="xs" c="dimmed">
+                        {issue.coverDate}
+                      </Text>
+                    </Group>
+                  </Stack>
+                </Card>
+              ))}
+            </SimpleGrid>
           </Stack>
         )}
 
-        {/* Lookup error with scan again */}
-        {lookupStatus === 'error' && (
-          <Center>
-            <CSButton
-              leftSection={<IconRefresh size={16} />}
-              variant="light"
-              onClick={handleScanAgain}
-            >
-              Scan Again
-            </CSButton>
-          </Center>
+        {/* ── Step: Preview ── */}
+        {step === 'preview' && comicDetail && (
+          <Group align="flex-start" wrap="wrap" gap="md">
+            {comicDetail.image && (
+              <Image
+                src={comicDetail.image}
+                w={120}
+                radius="sm"
+                alt={`${comicDetail.series.name} #${comicDetail.number} cover`}
+              />
+            )}
+            <Stack gap="xs" style={{ flex: 1, minWidth: 160 }}>
+              <Title order={4}>
+                {comicDetail.series.name} #{comicDetail.number}
+              </Title>
+              {comicDetail.title && (
+                <Text size="sm" c="dimmed">
+                  {comicDetail.title}
+                </Text>
+              )}
+              <Group gap="xs" wrap="wrap">
+                <Badge variant="light" color="violet">
+                  {comicDetail.publisher.name}
+                </Badge>
+                <Badge variant="light" color="gray">
+                  {comicDetail.coverDate}
+                </Badge>
+              </Group>
+              {comicDetail.upc && (
+                <Text size="xs" c="dimmed">
+                  UPC: {comicDetail.upc}
+                </Text>
+              )}
+            </Stack>
+          </Group>
         )}
 
-        {/* Comic found */}
-        {lookupStatus === 'found' && comicDetail && (
-          <Stack gap="md">
-            <Group align="flex-start" wrap="wrap" gap="md">
-              {comicDetail.image && (
-                <Image
-                  src={comicDetail.image}
-                  w={120}
-                  radius="sm"
-                  alt={`${comicDetail.series.name} #${comicDetail.number} cover`}
-                />
-              )}
-              <Stack gap="xs" style={{ flex: 1, minWidth: 160 }}>
-                <Title order={4}>
-                  {comicDetail.series.name} #{comicDetail.number}
-                </Title>
-                {comicDetail.title && (
-                  <Text size="sm" c="dimmed">
-                    {comicDetail.title}
-                  </Text>
-                )}
-                <Group gap="xs" wrap="wrap">
-                  <Badge variant="light" color="violet">
-                    {comicDetail.publisher.name}
-                  </Badge>
-                  <Badge variant="light" color="gray">
-                    {comicDetail.coverDate}
-                  </Badge>
-                </Group>
-                {comicDetail.upc && (
-                  <Text size="xs" c="dimmed">
-                    UPC: {comicDetail.upc}
-                  </Text>
-                )}
-              </Stack>
-            </Group>
+        {/* ── Step: Not found ── */}
+        {step === 'not-found' && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="orange"
+            title="No Comic Found"
+          >
+            No comic was found for barcode{' '}
+            <strong>{barcodeSet?.fullUpc}</strong>. The barcode may not be in
+            the Metron database.
+          </Alert>
+        )}
 
-            <Group justify="flex-end" gap="sm">
+        {/* ── Shared footer: all post-scan steps ── */}
+        {step !== 'scanning' && step !== 'looking-up' && (
+          <Group justify="flex-end" gap="sm" wrap="wrap">
+            {step === 'preview' && results.length > 1 && (
               <Button
                 variant="subtle"
                 size="sm"
-                leftSection={<IconRefresh size={14} />}
-                onClick={handleScanAgain}
+                rightSection={<IconArrowLeft size={14} />}
+                onClick={() => setStep('results')}
               >
-                Scan Again
+                Back to Results
               </Button>
+            )}
+            <Button
+              variant="subtle"
+              size="sm"
+              rightSection={<IconRefresh size={14} />}
+              onClick={handleScanAgain}
+            >
+              Scan Again
+            </Button>
+            {step === 'preview' && (
               <CSButton
-                leftSection={<IconCheck size={16} />}
+                rightSection={<IconCheck size={16} />}
                 loading={importing}
                 onClick={handleImport}
               >
                 Add to Collection
               </CSButton>
-            </Group>
-          </Stack>
+            )}
+          </Group>
         )}
       </Stack>
     </Modal>

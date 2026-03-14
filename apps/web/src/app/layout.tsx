@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, Outlet, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import {
   AppShell,
   Group,
@@ -27,12 +27,26 @@ import {
   IconLogout,
   IconRefresh,
   IconLayersLinked,
+  IconLayoutSidebar,
 } from '@tabler/icons-react'
 import { useAuth } from '../auth/auth-context'
 
 export function Layout() {
   const [opened, { toggle, close }] = useDisclosure()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const prevHasPanelRef = useRef(false)
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    const hasPanel = !!searchParams.get('comic')
+    if (hasPanel && !prevHasPanelRef.current) {
+      setSidebarOpen(false)
+    } else if (!hasPanel && prevHasPanelRef.current) {
+      setSidebarOpen(true)
+    }
+    prevHasPanelRef.current = hasPanel
+  }, [searchParams])
   const { setColorScheme, colorScheme } = useMantineColorScheme()
   const computedColorScheme = useComputedColorScheme('light')
   const { user, logout } = useAuth()
@@ -75,7 +89,7 @@ export function Layout() {
       navbar={{
         width: 250,
         breakpoint: 'sm',
-        collapsed: { mobile: !opened },
+        collapsed: { mobile: !opened, desktop: !sidebarOpen },
       }}
       padding="md"
     >
@@ -88,6 +102,15 @@ export function Layout() {
               hiddenFrom="sm"
               size="sm"
             />
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              visibleFrom="sm"
+              onClick={() => setSidebarOpen((o) => !o)}
+              aria-label="Toggle sidebar"
+            >
+              <IconLayoutSidebar size={18} />
+            </ActionIcon>
             <Text
               component={Link}
               to="/"

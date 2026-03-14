@@ -8,6 +8,7 @@ import {
   Skeleton,
   Stack,
   Alert,
+  Container,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
@@ -46,12 +47,9 @@ export function SeriesListPage() {
   }, [])
 
   return (
-    <>
-      <Group justify="space-between" mb="lg" align="center">
-        <Group gap="sm">
-          <IconLayersLinked size={28} />
-          <Title order={2}>Series Tracker</Title>
-        </Group>
+    <Container size="xl" py="md">
+      <Group justify="space-between" align="center" mb="lg">
+        <Title order={1}>Series Tracker</Title>
         <CSButton rightSection={<IconPlus size={16} />} onClick={openModal}>
           Track Series
         </CSButton>
@@ -98,6 +96,6 @@ export function SeriesListPage() {
         onClose={closeModal}
         onTracked={load}
       />
-    </>
+    </Container>
   )
 }

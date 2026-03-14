@@ -5,25 +5,42 @@ import {
   DecodeHintType,
   NotFoundException,
   ReedSolomonException,
+  ResultMetadataType,
 } from '@zxing/library'
+import {
+  classifyBarcode,
+  normalizeToEan13,
+  type ComicBarcodeSet,
+} from './barcode-validation'
 
-export type ScannerStatus =
+export type ScannerPhase =
   | 'idle'
   | 'starting'
   | 'scanning'
-  | 'detected'
+  | 'confirming'
+  | 'complete'
   | 'error'
 
+export interface BarcodeSet {
+  main: string
+  supplement?: string
+  fullUpc: string
+}
+
 interface UseBarcodeScanner {
-  status: ScannerStatus
-  detectedBarcode: string | null
+  phase: ScannerPhase
+  barcodeSet: BarcodeSet | null
   error: string | null
   isSupported: boolean
   videoRef: React.RefObject<HTMLVideoElement | null>
+  mainHits: number
+  supplementHits: number
   startScanning: () => Promise<void>
   stopScanning: () => void
   resetScan: () => void
 }
+
+const CONFIDENCE_THRESHOLD = 3
 
 function buildReader(): BrowserMultiFormatReader {
   const hints = new Map<DecodeHintType, unknown>()
@@ -37,12 +54,18 @@ function buildReader(): BrowserMultiFormatReader {
   return new BrowserMultiFormatReader(hints)
 }
 
-export function useBarcodeScanner(
-  onBarcodeDetected?: (barcode: string) => void
-): UseBarcodeScanner {
-  const [status, setStatus] = useState<ScannerStatus>('idle')
-  const [detectedBarcode, setDetectedBarcode] = useState<string | null>(null)
+function buildBarcodeSet(set: ComicBarcodeSet): BarcodeSet {
+  const main = normalizeToEan13(set.main)
+  const fullUpc = set.supplement ? main + set.supplement : main
+  return { main, supplement: set.supplement, fullUpc }
+}
+
+export function useBarcodeScanner(): UseBarcodeScanner {
+  const [phase, setPhase] = useState<ScannerPhase>('idle')
+  const [barcodeSet, setBarcodeSet] = useState<BarcodeSet | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [mainHits, setMainHits] = useState(0)
+  const [supplementHits, setSupplementHits] = useState(0)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -51,14 +74,24 @@ export function useBarcodeScanner(
   const stoppedRef = useRef(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const unexpectedErrorCountRef = useRef(0)
-  // Ref to always call the latest callback without restarting the scan loop
-  const onBarcodeDetectedRef = useRef(onBarcodeDetected)
-  onBarcodeDetectedRef.current = onBarcodeDetected
+
+  // Confidence tracking — refs only, no re-render per frame
+  const confidenceMapRef = useRef<Map<string, number>>(new Map())
+  const confirmedMainRef = useRef<string | null>(null)
+  const piggybackedSupplementRef = useRef<string | null>(null)
+  const phaseRef = useRef<ScannerPhase>('idle')
+
+  // Keep phaseRef in sync so the scan loop can read it without closures
+  const updatePhase = useCallback((p: ScannerPhase) => {
+    phaseRef.current = p
+    setPhase(p)
+  }, [])
 
   const isSupported =
     typeof navigator !== 'undefined' &&
     typeof navigator.mediaDevices?.getUserMedia === 'function'
 
+  // Tears down camera hardware only — does NOT change phase
   const stopScanning = useCallback(() => {
     stoppedRef.current = true
 
@@ -77,27 +110,47 @@ export function useBarcodeScanner(
     }
 
     readerRef.current = null
-    setStatus('idle')
   }, [])
 
   const resetScan = useCallback(() => {
     stopScanning()
-    setDetectedBarcode(null)
-    setError(null)
+    confidenceMapRef.current.clear()
+    confirmedMainRef.current = null
+    piggybackedSupplementRef.current = null
     stoppedRef.current = false
-  }, [stopScanning])
+    setBarcodeSet(null)
+    setError(null)
+    setMainHits(0)
+    setSupplementHits(0)
+    updatePhase('idle')
+  }, [stopScanning, updatePhase])
+
+  const finalizeScan = useCallback(
+    (set: ComicBarcodeSet) => {
+      stopScanning()
+      setBarcodeSet(buildBarcodeSet(set))
+      updatePhase('complete')
+    },
+    [stopScanning, updatePhase]
+  )
 
   const startScanning = useCallback(async () => {
     if (!isSupported) {
       setError('Camera is not supported in this browser.')
-      setStatus('error')
+      updatePhase('error')
       return
     }
 
     stoppedRef.current = false
-    setDetectedBarcode(null)
+    unexpectedErrorCountRef.current = 0
+    confidenceMapRef.current.clear()
+    confirmedMainRef.current = null
+    piggybackedSupplementRef.current = null
+    setBarcodeSet(null)
     setError(null)
-    setStatus('starting')
+    setMainHits(0)
+    setSupplementHits(0)
+    updatePhase('starting')
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -123,9 +176,8 @@ export function useBarcodeScanner(
       videoRef.current.srcObject = stream
       await videoRef.current.play()
 
-      setStatus('scanning')
+      updatePhase('scanning')
 
-      // Set up offscreen canvas for decoding
       if (!canvasRef.current) {
         canvasRef.current = document.createElement('canvas')
       }
@@ -147,43 +199,102 @@ export function useBarcodeScanner(
           return
         }
 
-        // Only resize when dimensions actually change — assigning canvas.width
-        // resets the bitmap buffer even when the value is identical.
         if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth
-        if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight
+        if (canvas.height !== video.videoHeight)
+          canvas.height = video.videoHeight
+
+        if (canvas.width === 0 || canvas.height === 0) {
+          rafRef.current = requestAnimationFrame(scan)
+          return
+        }
+
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
         try {
           const result = reader.decodeFromCanvas(canvas)
           if (result && !stoppedRef.current) {
             const text = result.getText()
-            setDetectedBarcode(text)
-            setStatus('detected')
-            stopScanning()
-            onBarcodeDetectedRef.current?.(text)
+            const currentPhase = phaseRef.current
+
+            // Check for piggybacked supplement in result metadata
+            const meta = result.getResultMetadata()
+            const piggybackedSupplement = meta?.get(
+              ResultMetadataType.UPC_EAN_EXTENSION
+            ) as string | undefined
+
+            if (currentPhase === 'scanning') {
+              const kind = classifyBarcode(text)
+              if (kind === 'main') {
+                const count = (confidenceMapRef.current.get(text) ?? 0) + 1
+                confidenceMapRef.current.set(text, count)
+                setMainHits(Math.min(count, CONFIDENCE_THRESHOLD))
+
+                // Accumulate piggybacked supplement across all hits
+                if (
+                  piggybackedSupplement &&
+                  /^\d{5}$/.test(piggybackedSupplement)
+                ) {
+                  piggybackedSupplementRef.current = piggybackedSupplement
+                }
+
+                if (count >= CONFIDENCE_THRESHOLD) {
+                  confirmedMainRef.current = text
+                  confidenceMapRef.current.clear()
+                  updatePhase('confirming')
+                }
+              }
+            } else if (currentPhase === 'confirming') {
+              const kind = classifyBarcode(text)
+
+              // Determine the supplement value from current frame or prior detection
+              const supplement =
+                piggybackedSupplement && /^\d{5}$/.test(piggybackedSupplement)
+                  ? piggybackedSupplement
+                  : kind === 'supplement'
+                  ? text
+                  : kind === 'main' && piggybackedSupplementRef.current
+                  ? piggybackedSupplementRef.current
+                  : null
+
+              if (supplement) {
+                if (supplement !== piggybackedSupplementRef.current) {
+                  piggybackedSupplementRef.current = supplement
+                }
+
+                const count =
+                  (confidenceMapRef.current.get(supplement) ?? 0) + 1
+                confidenceMapRef.current.set(supplement, count)
+                setSupplementHits(Math.min(count, CONFIDENCE_THRESHOLD))
+
+                if (count >= CONFIDENCE_THRESHOLD && confirmedMainRef.current) {
+                  finalizeScan({ main: confirmedMainRef.current, supplement })
+                  return
+                }
+              }
+            }
           }
         } catch (err) {
-          // NotFoundException and ReedSolomonException are expected — thrown on every
-          // frame that contains no barcode.
           if (
             err instanceof NotFoundException ||
             err instanceof ReedSolomonException
           ) {
             unexpectedErrorCountRef.current = 0
-            if (!stoppedRef.current) {
-              rafRef.current = requestAnimationFrame(scan)
-            }
           } else {
             unexpectedErrorCountRef.current += 1
             console.warn('Barcode decode error:', err)
             if (unexpectedErrorCountRef.current > 30) {
-              setError('Barcode scanner encountered repeated errors. Please try again.')
-              setStatus('error')
+              setError(
+                'Barcode scanner encountered repeated errors. Please try again.'
+              )
+              updatePhase('error')
               stopScanning()
-            } else if (!stoppedRef.current) {
-              rafRef.current = requestAnimationFrame(scan)
+              return
             }
           }
+        }
+
+        if (!stoppedRef.current) {
+          rafRef.current = requestAnimationFrame(scan)
         }
       }
 
@@ -197,9 +308,9 @@ export function useBarcodeScanner(
         ? 'No camera found on this device.'
         : 'Failed to start camera. Please try again.'
       setError(friendlyMessage)
-      setStatus('error')
+      updatePhase('error')
     }
-  }, [isSupported, stopScanning])
+  }, [isSupported, stopScanning, updatePhase, finalizeScan])
 
   // Clean up on unmount
   useEffect(() => {
@@ -211,7 +322,6 @@ export function useBarcodeScanner(
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop())
       }
-      // Release the off-screen canvas pixel buffer
       if (canvasRef.current) {
         canvasRef.current.width = 0
         canvasRef.current = null
@@ -220,11 +330,13 @@ export function useBarcodeScanner(
   }, [])
 
   return {
-    status,
-    detectedBarcode,
+    phase,
+    barcodeSet,
     error,
     isSupported,
     videoRef,
+    mainHits,
+    supplementHits,
     startScanning,
     stopScanning,
     resetScan,

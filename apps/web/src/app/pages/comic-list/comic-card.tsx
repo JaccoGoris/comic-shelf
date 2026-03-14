@@ -9,27 +9,23 @@ interface ComicCardProps {
   comic: ComicListItemDto
   onAcquire?: (id: number) => void
   acquiring?: boolean
+  onSelect?: (id: number) => void
+  selected?: boolean
 }
 
-export function ComicCard({ comic, onAcquire, acquiring }: ComicCardProps) {
+export function ComicCard({ comic, onAcquire, acquiring, onSelect, selected }: ComicCardProps) {
   const isMissing = comic.collectionWishlist === 'MISSING'
 
-  return (
-    <Card
-      component={Link}
-      to={`/comics/${comic.id}`}
-      shadow="sm"
-      radius="md"
-      withBorder
-      p={0}
-      style={{
-        textDecoration: 'none',
-        color: 'inherit',
-        position: 'relative',
-        aspectRatio: '2/3',
-        overflow: 'hidden',
-      }}
-    >
+  const baseStyle = {
+    textDecoration: 'none',
+    color: 'inherit',
+    position: 'relative' as const,
+    aspectRatio: '2/3',
+    overflow: 'hidden',
+  }
+
+  const innerContent = (
+    <>
       {comic.coverImageUrl ? (
         <Image
           src={comic.coverImageUrl}
@@ -141,6 +137,42 @@ export function ComicCard({ comic, onAcquire, acquiring }: ComicCardProps) {
           <IconPlus size={14} />
         </ActionIcon>
       )}
+    </>
+  )
+
+  if (onSelect) {
+    return (
+      <Card
+        component="div"
+        shadow="sm"
+        radius="md"
+        withBorder
+        p={0}
+        onClick={() => onSelect(comic.id)}
+        style={{
+          ...baseStyle,
+          cursor: 'pointer',
+          borderLeft: selected
+            ? '4px solid var(--mantine-color-violet-6)'
+            : undefined,
+        }}
+      >
+        {innerContent}
+      </Card>
+    )
+  }
+
+  return (
+    <Card
+      component={Link}
+      to={`/comics/${comic.id}`}
+      shadow="sm"
+      radius="md"
+      withBorder
+      p={0}
+      style={baseStyle}
+    >
+      {innerContent}
     </Card>
   )
 }

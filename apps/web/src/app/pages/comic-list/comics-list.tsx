@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   getComics,
   getPublishers,
@@ -16,7 +16,9 @@ import type {
   SeriesDto,
 } from '@comic-shelf/shared-types'
 import {
+  Box,
   Container,
+  Flex,
   Title,
   TextInput,
   Select,
@@ -28,15 +30,12 @@ import {
   Stack,
   Anchor,
   Divider,
-  Button,
-  Menu,
 } from '@mantine/core'
 import { useDisclosure, useIntersection } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import {
   IconSearch,
   IconPlus,
-  IconChevronDown,
   IconPencil,
   IconAtom,
   IconBarcode,
@@ -48,9 +47,9 @@ import { CreateComicModal } from '../../components/create-comic-modal'
 import { MetronAddModal } from '../metron-add'
 import { CSButton } from '../../components/cs-button'
 import { BarcodeScannerModal } from './components/barcode-scanner-modal'
+import { ComicDetailPanel } from './components/comic-detail-panel'
 
 export function ComicsListPage() {
-  const navigate = useNavigate()
   const [
     createModalOpened,
     { open: openCreateModal, close: closeCreateModal },
@@ -86,6 +85,20 @@ export function ComicsListPage() {
   const seriesId = searchParams.get('seriesId') ?? ''
   const read = searchParams.get('read') ?? ''
   const groupBy = searchParams.get('groupBy') ?? 'series'
+  const selectedComicId = searchParams.get('comic')
+
+  const selectComic = useCallback(
+    (id: number | null) => {
+      const params = new URLSearchParams(searchParams)
+      if (id !== null) {
+        params.set('comic', String(id))
+      } else {
+        params.delete('comic')
+      }
+      setSearchParams(params)
+    },
+    [searchParams, setSearchParams]
+  )
 
   const { ref: sentinelRef, entry } = useIntersection({ threshold: 0.1 })
 
@@ -334,7 +347,14 @@ export function ComicsListPage() {
   }
 
   const renderGrid = (items: ComicListItemDto[]) => (
-    <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
+    <SimpleGrid
+      cols={
+        selectedComicId
+          ? { base: 1, xs: 2, sm: 2, md: 3, lg: 4 }
+          : { base: 1, xs: 2, sm: 3, md: 4, lg: 6 }
+      }
+      spacing="md"
+    >
       {items.map((comic) => (
         <ComicCard
           key={comic.id}
@@ -343,13 +363,15 @@ export function ComicsListPage() {
             comic.collectionWishlist === 'MISSING' ? handleAcquire : undefined
           }
           acquiring={acquiringIds.has(comic.id)}
+          onSelect={selectComic}
+          selected={comic.id === Number(selectedComicId)}
         />
       ))}
     </SimpleGrid>
   )
 
-  return (
-    <Container size="xl" py="md">
+  const headerSection = (
+    <>
       <Group justify="space-between" align="center" mb="lg">
         {editingTitle ? (
           <TextInput
@@ -378,36 +400,16 @@ export function ComicsListPage() {
             <IconPencil size={18} style={{ opacity: 0.4 }} />
           </Group>
         )}
-        <Group>
-          <Button.Group>
-            <CSButton
-              rightSection={<IconPlus size={16} />}
-              onClick={openCreateModal}
-            >
-              Add Comic
-            </CSButton>
-            <Menu position="bottom-end" withinPortal>
-              <Menu.Target>
-                <Button px="xs">
-                  <IconChevronDown size={16} />
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  rightSection={<IconAtom size={14} />}
-                  onClick={openMetronModal}
-                >
-                  Add from Metron
-                </Menu.Item>
-                <Menu.Item
-                  rightSection={<IconBarcode size={14} />}
-                  onClick={openScannerModal}
-                >
-                  Scan Barcode
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Button.Group>
+        <Group gap="xs">
+          <CSButton rightSection={<IconPlus size={16} />} onClick={openCreateModal}>
+            Add Comic
+          </CSButton>
+          <CSButton rightSection={<IconAtom size={16} />} onClick={openMetronModal}>
+            Add from Metron
+          </CSButton>
+          <CSButton rightSection={<IconBarcode size={16} />} onClick={openScannerModal}>
+            Scan Barcode
+          </CSButton>
         </Group>
       </Group>
 
@@ -461,7 +463,11 @@ export function ComicsListPage() {
           {total} comics
         </Text>
       )}
+    </>
+  )
 
+  const gridSection = (
+    <>
       {/* Initial loading */}
       {loading && (
         <Center py="xl">
@@ -549,22 +555,49 @@ export function ComicsListPage() {
           <Loader size="sm" />
         </Center>
       )}
+    </>
+  )
 
+  return (
+    <>
+      {selectedComicId ? (
+        <Flex style={{ height: 'calc(100dvh - var(--app-shell-header-height) - var(--app-shell-padding) * 2)', overflow: 'hidden' }}>
+          <Box style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <Container size="xl" pt="md" pb="sm" style={{ flexShrink: 0 }}>
+              {headerSection}
+            </Container>
+            <Box style={{ flex: 1, overflowY: 'auto' }}>
+              <Container size="xl">
+                {gridSection}
+              </Container>
+            </Box>
+          </Box>
+          <ComicDetailPanel
+            comicId={selectedComicId}
+            onClose={() => selectComic(null)}
+          />
+        </Flex>
+      ) : (
+        <Container size="xl" pt="md">
+          {headerSection}
+          {gridSection}
+        </Container>
+      )}
       <CreateComicModal
         opened={createModalOpened}
         onClose={closeCreateModal}
-        onCreated={(comicId) => navigate(`/comics/${comicId}`)}
+        onCreated={(comicId) => selectComic(comicId)}
       />
       <MetronAddModal
         opened={metronModalOpened}
         onClose={closeMetronModal}
-        onImported={(comicId) => navigate(`/comics/${comicId}`)}
+        onImported={(comicId) => selectComic(comicId)}
       />
       <BarcodeScannerModal
         opened={scannerModalOpened}
         onClose={closeScannerModal}
         onImported={fetchComics}
       />
-    </Container>
+    </>
   )
 }

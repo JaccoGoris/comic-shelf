@@ -27,6 +27,7 @@ import { useForm } from '@mantine/form'
 import { zodResolver } from 'mantine-form-zod-resolver'
 import { comicFormSchema, type ComicFormValues } from './comic-detail-schema'
 import {
+  Box,
   Container,
   Title,
   Text,
@@ -244,8 +245,17 @@ function getInitialVisibleRoles(vals: ComicFormValues): CreatorRole[] {
   )
 }
 
-export function ComicDetailPage() {
-  const { id } = useParams<{ id: string }>()
+interface ComicDetailProps {
+  comicId: string
+  mode?: 'page' | 'panel'
+  onClose?: () => void
+}
+
+export function ComicDetail({
+  comicId,
+  mode = 'page',
+  onClose,
+}: ComicDetailProps) {
   const navigate = useNavigate()
   const [comic, setComic] = useState<ComicDetailDto | null>(null)
   const [loading, setLoading] = useState(true)
@@ -325,9 +335,9 @@ export function ComicDetailPage() {
   }
 
   useEffect(() => {
-    if (!id) return
+    if (!comicId) return
     setLoading(true)
-    getComic(parseInt(id, 10))
+    getComic(parseInt(comicId, 10))
       .then((data) => {
         setComic(data)
         applyComicToForm(data)
@@ -335,7 +345,7 @@ export function ComicDetailPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [comicId])
 
   const handleSave = async (values: ComicFormValues) => {
     if (!comic) return
@@ -447,7 +457,11 @@ export function ComicDetailPage() {
             message: `"${comic.title}" has been deleted.`,
             color: 'green',
           })
-          navigate('/comics')
+          if (mode === 'panel') {
+            onClose?.()
+          } else {
+            navigate('/comics')
+          }
         } catch {
           notifications.show({
             title: 'Error',
@@ -507,19 +521,19 @@ export function ComicDetailPage() {
 
   if (error) {
     return (
-      <Container size="sm" py="xl">
+      <Box p="md">
         <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
           {error}
         </Alert>
-      </Container>
+      </Box>
     )
   }
 
   if (!comic) {
     return (
-      <Container size="sm" py="xl">
+      <Box p="md">
         <Text>Comic not found.</Text>
-      </Container>
+      </Box>
     )
   }
 
@@ -527,17 +541,19 @@ export function ComicDetailPage() {
     (r) => !visibleRoles.includes(r.value as CreatorRole)
   )
 
-  return (
-    <Container size="lg" py="md">
-      <Button
-        component={Link}
-        to="/comics"
-        variant="subtle"
-        leftSection={<IconArrowLeft size={16} />}
-        mb="md"
-      >
-        Back to collection
-      </Button>
+  const content = (
+    <>
+      {mode === 'page' && (
+        <Button
+          component={Link}
+          to="/comics"
+          variant="subtle"
+          leftSection={<IconArrowLeft size={16} />}
+          mb="md"
+        >
+          Back to collection
+        </Button>
+      )}
 
       <form onSubmit={form.onSubmit(handleSave)}>
         <Stack>
@@ -567,7 +583,8 @@ export function ComicDetailPage() {
                   <Textarea
                     autosize
                     w="100%"
-                    minRows={5}
+                    minRows={6}
+                    maxRows={6}
                     placeholder="Synopsis"
                     key={form.key('synopsis')}
                     {...form.getInputProps('synopsis')}
@@ -644,7 +661,7 @@ export function ComicDetailPage() {
             </Paper>
           </Stack>
 
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+          <SimpleGrid cols={mode === 'panel' ? 1 : { base: 1, lg: 2 }} spacing="lg">
             {/* Details */}
             <Paper withBorder p="md" radius="md">
               <Title order={3} mb="sm">
@@ -988,7 +1005,7 @@ export function ComicDetailPage() {
             <Title order={3} mb="sm">
               Grading
             </Title>
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
+            <SimpleGrid cols={mode === 'panel' ? 1 : { base: 1, md: 2 }} spacing="xs">
               <TextInput
                 label="Graded By"
                 placeholder="Grading company"
@@ -1043,6 +1060,21 @@ export function ComicDetailPage() {
           </Paper>
         </Stack>
       </form>
+    </>
+  )
+
+  if (mode === 'panel') {
+    return <Box p="md">{content}</Box>
+  }
+
+  return (
+    <Container size="lg" py="md">
+      {content}
     </Container>
   )
+}
+
+export function ComicDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  return <ComicDetail comicId={id!} mode="page" />
 }

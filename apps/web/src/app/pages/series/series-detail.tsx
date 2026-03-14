@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
+  Box,
+  Flex,
   Title,
   Group,
   Badge,
@@ -12,6 +14,7 @@ import {
   Center,
   Skeleton,
   Alert,
+  Container,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconArrowLeft, IconAlertCircle } from '@tabler/icons-react'
@@ -24,6 +27,7 @@ import {
 } from '../../../api/client'
 import type { TrackedSeriesDto } from '@comic-shelf/shared-types'
 import { ComicCard } from '../comic-list/comic-card'
+import { ComicDetailPanel } from '../comic-list/components/comic-detail-panel'
 
 export function SeriesDetailPage() {
   const { metronSeriesId: metronSeriesIdParam } = useParams<{
@@ -38,6 +42,21 @@ export function SeriesDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acquiringIds, setAcquiringIds] = useState<Set<number>>(new Set())
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedComicId = searchParams.get('comic')
+
+  const selectComic = useCallback(
+    (id: number | null) => {
+      const params = new URLSearchParams(searchParams)
+      if (id !== null) {
+        params.set('comic', String(id))
+      } else {
+        params.delete('comic')
+      }
+      setSearchParams(params)
+    },
+    [searchParams, setSearchParams]
+  )
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -99,7 +118,7 @@ export function SeriesDetailPage() {
     trackedSeries?.name ??
     (metronSeriesId > 0 ? `Series #${metronSeriesId}` : 'Series')
 
-  return (
+  const headerSection = (
     <>
       <Group mb="xs">
         <Button
@@ -113,24 +132,7 @@ export function SeriesDetailPage() {
         </Button>
       </Group>
 
-      {loading ? (
-        <Stack gap="md">
-          <Skeleton height={40} w={300} />
-          <Skeleton height={16} />
-          <SimpleGrid
-            cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }}
-            spacing="md"
-          >
-            {Array.from({ length: 24 }).map((_, i) => (
-              <Skeleton key={i} height={200} radius="md" />
-            ))}
-          </SimpleGrid>
-        </Stack>
-      ) : error ? (
-        <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
-          {error}
-        </Alert>
-      ) : (
+      {!loading && !error && (
         <>
           <Group mb="sm" align="center" wrap="wrap" gap="sm">
             <Title order={2}>{seriesTitle}</Title>
@@ -156,34 +158,76 @@ export function SeriesDetailPage() {
             color="violet"
             size="sm"
             radius="xl"
-            mb="lg"
+            mb="sm"
           />
-
-          {issues.length === 0 ? (
-            <Center py="xl">
-              <Text c="dimmed">No issues found for this series.</Text>
-            </Center>
-          ) : (
-            <SimpleGrid
-              cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }}
-              spacing="md"
-            >
-              {issues.map((issue) => (
-                <ComicCard
-                  key={issue.id}
-                  comic={issue}
-                  onAcquire={
-                    issue.collectionType === 'MISSING'
-                      ? handleAcquire
-                      : undefined
-                  }
-                  acquiring={acquiringIds.has(issue.id)}
-                />
-              ))}
-            </SimpleGrid>
-          )}
         </>
       )}
     </>
+  )
+
+  const gridSection = loading ? (
+    <Stack gap="md">
+      <Skeleton height={40} w={300} />
+      <Skeleton height={16} />
+      <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <Skeleton key={i} height={200} radius="md" />
+        ))}
+      </SimpleGrid>
+    </Stack>
+  ) : error ? (
+    <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
+      {error}
+    </Alert>
+  ) : issues.length === 0 ? (
+    <Center py="xl">
+      <Text c="dimmed">No issues found for this series.</Text>
+    </Center>
+  ) : (
+    <SimpleGrid
+      cols={
+        selectedComicId
+          ? { base: 1, xs: 2, sm: 2, md: 3, lg: 4 }
+          : { base: 1, xs: 2, sm: 3, md: 4, lg: 6 }
+      }
+      spacing="md"
+    >
+      {issues.map((issue) => (
+        <ComicCard
+          key={issue.id}
+          comic={issue}
+          onAcquire={
+            issue.collectionType === 'MISSING' ? handleAcquire : undefined
+          }
+          acquiring={acquiringIds.has(issue.id)}
+          onSelect={selectComic}
+          selected={issue.id === Number(selectedComicId)}
+        />
+      ))}
+    </SimpleGrid>
+  )
+
+  return selectedComicId ? (
+    <Flex style={{ height: 'calc(100dvh - var(--app-shell-header-height) - var(--app-shell-padding) * 2)', overflow: 'hidden' }}>
+      <Box style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Container size="xl" pt="md" pb="sm" style={{ flexShrink: 0 }}>
+          {headerSection}
+        </Container>
+        <Box style={{ flex: 1, overflowY: 'auto' }}>
+          <Container size="xl">
+            {gridSection}
+          </Container>
+        </Box>
+      </Box>
+      <ComicDetailPanel
+        comicId={selectedComicId}
+        onClose={() => selectComic(null)}
+      />
+    </Flex>
+  ) : (
+    <Container size="xl" pt="md">
+      {headerSection}
+      {gridSection}
+    </Container>
   )
 }
