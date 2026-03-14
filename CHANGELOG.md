@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.6.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.5.0...v1.6.0) (2026-03-14)
+
+
+### Features
+
+* added barcode scanner ([3325d32](https://github.com/JaccoGoris/comic-shelf/commit/3325d32a86d1257f67ebdf236fb2ff3c3996f150))
+* added side pane for better navigation and started on barcode scanner ([5f3fa6d](https://github.com/JaccoGoris/comic-shelf/commit/5f3fa6df63607a87e2dd5f411267fe8f1923a147))
+* functional upc barcode scanner ([d9ee246](https://github.com/JaccoGoris/comic-shelf/commit/d9ee2467b26e1f000b459dbd9d32c47b2c657258))
+
+
+### Bug Fixes
+
+* remove pnpm-lock.yaml and ignore it to fix CI ([5e63fe3](https://github.com/JaccoGoris/comic-shelf/commit/5e63fe34dd85e9cf3a778b24852b95aab55d271b))
+
 ## [1.5.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.4.0...v1.5.0) (2026-03-13)
 
 
