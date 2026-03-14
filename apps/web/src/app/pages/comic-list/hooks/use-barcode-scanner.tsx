@@ -1,140 +1,269 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { BrowserMultiFormatReader } from '@zxing/browser'
+import Quagga, {
+  type QuaggaJSResultObject,
+  type QuaggaJSCodeReader,
+  type QuaggaJSResultObject_CodeResult,
+} from '@ericblade/quagga2'
 import {
-  BarcodeFormat,
-  DecodeHintType,
-  NotFoundException,
-  ReedSolomonException,
-  ResultMetadataType,
-} from '@zxing/library'
-import {
-  classifyBarcode,
-  normalizeToEan13,
+  buildBarcodeSet,
+  type BarcodeSet,
   type ComicBarcodeSet,
 } from './barcode-validation'
+
+// ─── Public types ─────────────────────────────────────────────────────────────
+
+export type { BarcodeSet } from './barcode-validation'
 
 export type ScannerPhase =
   | 'idle'
   | 'starting'
   | 'scanning'
-  | 'confirming'
   | 'complete'
   | 'error'
 
-export interface BarcodeSet {
-  main: string
-  supplement?: string
-  fullUpc: string
-}
-
-interface UseBarcodeScanner {
+export interface UseBarcodeScanner {
   phase: ScannerPhase
   barcodeSet: BarcodeSet | null
   error: string | null
   isSupported: boolean
-  videoRef: React.RefObject<HTMLVideoElement | null>
-  mainHits: number
-  supplementHits: number
-  startScanning: () => Promise<void>
+  containerRef: React.RefObject<HTMLDivElement | null>
+  hits: number
+  startScanning: () => void
   stopScanning: () => void
   resetScan: () => void
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Number of times a full UPC must be detected before it is considered confirmed.
+ * Higher = more reliable, slower to lock on.
+ */
 const CONFIDENCE_THRESHOLD = 3
 
-function buildReader(): BrowserMultiFormatReader {
-  const hints = new Map<DecodeHintType, unknown>()
-  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-    BarcodeFormat.EAN_13,
-    BarcodeFormat.EAN_8,
-    BarcodeFormat.UPC_A,
-    BarcodeFormat.UPC_E,
-  ])
-  hints.set(DecodeHintType.TRY_HARDER, true)
-  return new BrowserMultiFormatReader(hints)
+/** Abort scanning entirely if nothing is detected within this window. */
+const SCAN_TIMEOUT_MS = 90_000
+
+/** Reject detections with average decode error above this threshold. */
+const MAX_AVG_ERROR = 0.25
+
+// ─── Quagga config ────────────────────────────────────────────────────────────
+
+function buildQuaggaConfig(target: Element) {
+  return {
+    inputStream: {
+      type: 'LiveStream' as const,
+      target,
+      constraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    },
+    decoder: {
+      readers: [
+        { format: 'ean_reader', config: { supplements: ['ean_5_reader'] } },
+      ] as unknown as QuaggaJSCodeReader[],
+    },
+    locate: false,
+    frequency: 10,
+  }
 }
 
-function buildBarcodeSet(set: ComicBarcodeSet): BarcodeSet {
-  const main = normalizeToEan13(set.main)
-  const fullUpc = set.supplement ? main + set.supplement : main
-  return { main, supplement: set.supplement, fullUpc }
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+/** Maps raw Quagga/camera errors to human-readable messages shown in the UI. */
+function describeCameraError(err: unknown): string {
+  const message =
+    typeof err === 'string' ? err : err instanceof Error ? err.message : ''
+  if (message.includes('Permission') || message.includes('NotAllowedError')) {
+    return 'Camera permission denied. Please allow camera access and try again.'
+  }
+  if (
+    message.includes('NotFound') ||
+    message.includes('DevicesNotFound') ||
+    message.includes('OverconstrainedError')
+  ) {
+    return 'No camera found on this device.'
+  }
+  if (message.includes('Could not start video source')) {
+    return 'Failed to start camera. Another app may be using it.'
+  }
+  return 'Failed to start camera. Please try again.'
 }
+
+/** Returns the average decode error across all decoded segments. */
+function getAverageError(codeResult: QuaggaJSResultObject_CodeResult): number {
+  const errors = codeResult.decodedCodes
+    .filter((c) => typeof c.error === 'number')
+    .map((c) => c.error!)
+  if (errors.length === 0) return 1
+  return errors.reduce((sum, e) => sum + e, 0) / errors.length
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useBarcodeScanner(): UseBarcodeScanner {
+  // ── React state (drives UI re-renders) ──────────────────────────────────────
   const [phase, setPhase] = useState<ScannerPhase>('idle')
   const [barcodeSet, setBarcodeSet] = useState<BarcodeSet | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [mainHits, setMainHits] = useState(0)
-  const [supplementHits, setSupplementHits] = useState(0)
+  const [hits, setHits] = useState(0)
 
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null)
-  const rafRef = useRef<number | null>(null)
+  // ── Refs (mutated each frame; do NOT trigger re-renders) ─────────────────────
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const quaggaRunningRef = useRef(false)
+
+  /** Set to true when `stopScanning` is called so callbacks exit cleanly. */
   const stoppedRef = useRef(false)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const unexpectedErrorCountRef = useRef(0)
 
-  // Confidence tracking — refs only, no re-render per frame
-  const confidenceMapRef = useRef<Map<string, number>>(new Map())
-  const confirmedMainRef = useRef<string | null>(null)
-  const piggybackedSupplementRef = useRef<string | null>(null)
+  /** Mirror of `phase` readable synchronously inside the onDetected callback. */
   const phaseRef = useRef<ScannerPhase>('idle')
 
-  // Keep phaseRef in sync so the scan loop can read it without closures
-  const updatePhase = useCallback((p: ScannerPhase) => {
-    phaseRef.current = p
-    setPhase(p)
+  /** Timer that aborts scanning if no barcode is detected within SCAN_TIMEOUT_MS. */
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /** Maps each candidate full UPC to its consecutive hit count. */
+  const confidenceMapRef = useRef<Map<string, number>>(new Map())
+
+  // ── Phase helper ─────────────────────────────────────────────────────────────
+  /** Updates both the React state and the synchronous ref so callbacks see changes immediately. */
+  const updatePhase = useCallback((nextPhase: ScannerPhase) => {
+    phaseRef.current = nextPhase
+    setPhase(nextPhase)
   }, [])
 
-  const isSupported =
-    typeof navigator !== 'undefined' &&
-    typeof navigator.mediaDevices?.getUserMedia === 'function'
-
-  // Tears down camera hardware only — does NOT change phase
+  // ── Camera teardown ───────────────────────────────────────────────────────────
   const stopScanning = useCallback(() => {
     stoppedRef.current = true
 
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
+    if (quaggaRunningRef.current) {
+      quaggaRunningRef.current = false
+      Quagga.offDetected()
+      Quagga.stop().catch((_err: unknown) => undefined)
     }
 
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
+    if (containerRef.current) {
+      const video = containerRef.current.querySelector('video')
+      if (video?.srcObject instanceof MediaStream) {
+        video.srcObject.getTracks().forEach((t) => t.stop())
+        video.srcObject = null
+      }
     }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-
-    readerRef.current = null
   }, [])
 
+  // ── Full state reset ──────────────────────────────────────────────────────────
   const resetScan = useCallback(() => {
     stopScanning()
+
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current)
+      scanTimeoutRef.current = null
+    }
+
     confidenceMapRef.current.clear()
-    confirmedMainRef.current = null
-    piggybackedSupplementRef.current = null
     stoppedRef.current = false
+
     setBarcodeSet(null)
     setError(null)
-    setMainHits(0)
-    setSupplementHits(0)
+    setHits(0)
     updatePhase('idle')
   }, [stopScanning, updatePhase])
 
+  // ── Scan completion ───────────────────────────────────────────────────────────
   const finalizeScan = useCallback(
-    (set: ComicBarcodeSet) => {
+    (confirmedSet: ComicBarcodeSet) => {
       stopScanning()
-      setBarcodeSet(buildBarcodeSet(set))
+      setBarcodeSet(buildBarcodeSet(confirmedSet))
       updatePhase('complete')
     },
     [stopScanning, updatePhase]
   )
 
-  const startScanning = useCallback(async () => {
+  // ── Frame handler ─────────────────────────────────────────────────────────────
+  /**
+   * Called for every detected frame.
+   * The supplement-only reader returns a concatenated code only when both
+   * EAN-13 and EAN-5 decode successfully, so fullCode is always 17-18 chars.
+   */
+  const handleFrame = useCallback(
+    (fullCode: string, supplement: string) => {
+      const hitCount = (confidenceMapRef.current.get(fullCode) ?? 0) + 1
+      confidenceMapRef.current.set(fullCode, hitCount)
+      setHits(Math.min(hitCount, CONFIDENCE_THRESHOLD))
+
+      if (hitCount >= CONFIDENCE_THRESHOLD) {
+        const main = fullCode.slice(0, fullCode.length - supplement.length)
+        finalizeScan({ main, supplement })
+      }
+    },
+    [finalizeScan]
+  )
+
+  // ── Stable callback ref (avoids re-registering on every render) ───────────────
+  const handleDetectedRef = useRef<(r: QuaggaJSResultObject) => void>(
+    (_r: QuaggaJSResultObject) => undefined
+  )
+  useEffect(() => {
+    handleDetectedRef.current = (result) => {
+      if (stoppedRef.current) return
+      const code = result.codeResult.code
+      if (!code) return
+
+      // Reject low-confidence detections
+      if (getAverageError(result.codeResult) > MAX_AVG_ERROR) return
+
+      // supplement is present at runtime but missing from @ericblade/quagga2 type defs
+      const extendedResult =
+        result.codeResult as QuaggaJSResultObject_CodeResult & {
+          supplement?: { code: string }
+        }
+      const supplement = extendedResult.supplement?.code
+      if (!supplement) return
+
+      // Validate full code is 17-18 digits
+      if (code.length < 17 || code.length > 18) return
+
+      if (phaseRef.current === 'scanning') handleFrame(code, supplement)
+    }
+  }, [handleFrame])
+
+  // ── Phase-driven timeout management ──────────────────────────────────────────
+  useEffect(() => {
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current)
+      scanTimeoutRef.current = null
+    }
+
+    if (phase === 'scanning') {
+      scanTimeoutRef.current = setTimeout(() => {
+        if (!stoppedRef.current) {
+          stopScanning()
+          setError('Scan timed out. Please try again.')
+          updatePhase('error')
+        }
+      }, SCAN_TIMEOUT_MS)
+    }
+
+    return () => {
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current)
+        scanTimeoutRef.current = null
+      }
+    }
+  }, [phase, stopScanning, updatePhase])
+
+  // ── Camera startup ────────────────────────────────────────────────────────────
+  const isSupported =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.mediaDevices?.getUserMedia === 'function'
+
+  /**
+   * Resets transient state and advances phase to 'starting'.
+   * Actual Quagga init happens in the useEffect below, after React has flushed
+   * the render that makes the container div appear in the DOM.
+   */
+  const startScanning = useCallback(() => {
     if (!isSupported) {
       setError('Camera is not supported in this browser.')
       updatePhase('error')
@@ -142,201 +271,89 @@ export function useBarcodeScanner(): UseBarcodeScanner {
     }
 
     stoppedRef.current = false
-    unexpectedErrorCountRef.current = 0
     confidenceMapRef.current.clear()
-    confirmedMainRef.current = null
-    piggybackedSupplementRef.current = null
     setBarcodeSet(null)
     setError(null)
-    setMainHits(0)
-    setSupplementHits(0)
+    setHits(0)
     updatePhase('starting')
+  }, [isSupported, updatePhase])
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      })
+  /**
+   * Runs after React renders the container div (phase === 'starting').
+   * Retries via requestAnimationFrame until containerRef.current is available,
+   * bridging Mantine Modal's double-RAF delay before content appears in the DOM.
+   */
+  useEffect(() => {
+    if (phase !== 'starting') return
 
-      if (stoppedRef.current) {
-        stream.getTracks().forEach((t) => t.stop())
+    let cancelled = false
+    let rafId: number
+
+    const tryInit = async () => {
+      if (cancelled) return
+
+      const container = containerRef.current
+      if (!container) {
+        // Mantine's Modal content appears after 2 requestAnimationFrames — retry
+        rafId = requestAnimationFrame(tryInit)
         return
       }
 
-      streamRef.current = stream
-
-      if (!videoRef.current) {
-        stream.getTracks().forEach((t) => t.stop())
-        return
-      }
-
-      videoRef.current.srcObject = stream
-      await videoRef.current.play()
-
-      updatePhase('scanning')
-
-      if (!canvasRef.current) {
-        canvasRef.current = document.createElement('canvas')
-      }
-      const canvas = canvasRef.current
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })
-      if (!ctx) {
-        throw new Error('Could not get canvas context for barcode decoding.')
-      }
-
-      readerRef.current = buildReader()
-      const reader = readerRef.current
-
-      const scan = () => {
-        if (stoppedRef.current || !videoRef.current) return
-
-        const video = videoRef.current
-        if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
-          rafRef.current = requestAnimationFrame(scan)
-          return
-        }
-
-        if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth
-        if (canvas.height !== video.videoHeight)
-          canvas.height = video.videoHeight
-
-        if (canvas.width === 0 || canvas.height === 0) {
-          rafRef.current = requestAnimationFrame(scan)
-          return
-        }
-
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-        try {
-          const result = reader.decodeFromCanvas(canvas)
-          if (result && !stoppedRef.current) {
-            const text = result.getText()
-            const currentPhase = phaseRef.current
-
-            // Check for piggybacked supplement in result metadata
-            const meta = result.getResultMetadata()
-            const piggybackedSupplement = meta?.get(
-              ResultMetadataType.UPC_EAN_EXTENSION
-            ) as string | undefined
-
-            if (currentPhase === 'scanning') {
-              const kind = classifyBarcode(text)
-              if (kind === 'main') {
-                const count = (confidenceMapRef.current.get(text) ?? 0) + 1
-                confidenceMapRef.current.set(text, count)
-                setMainHits(Math.min(count, CONFIDENCE_THRESHOLD))
-
-                // Accumulate piggybacked supplement across all hits
-                if (
-                  piggybackedSupplement &&
-                  /^\d{5}$/.test(piggybackedSupplement)
-                ) {
-                  piggybackedSupplementRef.current = piggybackedSupplement
-                }
-
-                if (count >= CONFIDENCE_THRESHOLD) {
-                  confirmedMainRef.current = text
-                  confidenceMapRef.current.clear()
-                  updatePhase('confirming')
-                }
-              }
-            } else if (currentPhase === 'confirming') {
-              const kind = classifyBarcode(text)
-
-              // Determine the supplement value from current frame or prior detection
-              const supplement =
-                piggybackedSupplement && /^\d{5}$/.test(piggybackedSupplement)
-                  ? piggybackedSupplement
-                  : kind === 'supplement'
-                  ? text
-                  : kind === 'main' && piggybackedSupplementRef.current
-                  ? piggybackedSupplementRef.current
-                  : null
-
-              if (supplement) {
-                if (supplement !== piggybackedSupplementRef.current) {
-                  piggybackedSupplementRef.current = supplement
-                }
-
-                const count =
-                  (confidenceMapRef.current.get(supplement) ?? 0) + 1
-                confidenceMapRef.current.set(supplement, count)
-                setSupplementHits(Math.min(count, CONFIDENCE_THRESHOLD))
-
-                if (count >= CONFIDENCE_THRESHOLD && confirmedMainRef.current) {
-                  finalizeScan({ main: confirmedMainRef.current, supplement })
-                  return
-                }
-              }
-            }
-          }
-        } catch (err) {
-          if (
-            err instanceof NotFoundException ||
-            err instanceof ReedSolomonException
-          ) {
-            unexpectedErrorCountRef.current = 0
-          } else {
-            unexpectedErrorCountRef.current += 1
-            console.warn('Barcode decode error:', err)
-            if (unexpectedErrorCountRef.current > 30) {
-              setError(
-                'Barcode scanner encountered repeated errors. Please try again.'
-              )
-              updatePhase('error')
-              stopScanning()
+      try {
+        await new Promise<void>((resolve, reject) => {
+          Quagga.init(buildQuaggaConfig(container), (err: unknown) => {
+            if (err) {
+              reject(err)
               return
             }
-          }
+            resolve()
+          })
+        })
+
+        if (cancelled || stoppedRef.current) {
+          await Quagga.stop().catch((_err: unknown) => undefined)
+          return
         }
 
-        if (!stoppedRef.current) {
-          rafRef.current = requestAnimationFrame(scan)
+        quaggaRunningRef.current = true
+        Quagga.start()
+        updatePhase('scanning')
+        Quagga.onDetected(handleDetectedRef.current)
+      } catch (err) {
+        if (!cancelled) {
+          setError(describeCameraError(err))
+          updatePhase('error')
         }
       }
-
-      rafRef.current = requestAnimationFrame(scan)
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to access camera.'
-      const friendlyMessage = message.includes('Permission')
-        ? 'Camera permission denied. Please allow camera access and try again.'
-        : message.includes('NotFound') || message.includes('DevicesNotFound')
-        ? 'No camera found on this device.'
-        : 'Failed to start camera. Please try again.'
-      setError(friendlyMessage)
-      updatePhase('error')
     }
-  }, [isSupported, stopScanning, updatePhase, finalizeScan])
 
-  // Clean up on unmount
+    rafId = requestAnimationFrame(tryInit)
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(rafId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
+  // ── Cleanup on unmount ────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      stoppedRef.current = true
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current)
+        scanTimeoutRef.current = null
       }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop())
-      }
-      if (canvasRef.current) {
-        canvasRef.current.width = 0
-        canvasRef.current = null
-      }
+      stopScanning()
     }
-  }, [])
+  }, [stopScanning])
 
   return {
     phase,
     barcodeSet,
     error,
     isSupported,
-    videoRef,
-    mainHits,
-    supplementHits,
+    containerRef,
+    hits,
     startScanning,
     stopScanning,
     resetScan,

@@ -1,0 +1,12 @@
+/* Ensure Quagga's injected video fills its container */
+.scanContainer video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Hide Quagga's debug canvas overlay */
+.scanContainer canvas {
+  display: none;
+}

@@ -11,7 +11,6 @@ import {
   Center,
   Image,
   Badge,
-  Button,
   Box,
   Title,
   SimpleGrid,
@@ -37,6 +36,7 @@ import {
 import { getErrorMessage } from '../../../../utils/error'
 import { useBarcodeScanner } from '../hooks/use-barcode-scanner'
 import { CSButton } from '../../../components/cs-button'
+import classes from './barcode-scanner.module.css'
 
 type ModalStep =
   | 'scanning'
@@ -81,9 +81,8 @@ export function BarcodeScannerModal({
     barcodeSet,
     error: cameraError,
     isSupported,
-    videoRef,
-    mainHits,
-    supplementHits,
+    containerRef,
+    hits,
     startScanning,
     resetScan,
   } = useBarcodeScanner()
@@ -104,6 +103,23 @@ export function BarcodeScannerModal({
     prevOpenedRef.current = opened
   }, [opened, startScanning, resetScan])
 
+  // Stop camera when tab is hidden; resume when it becomes visible again
+  useEffect(() => {
+    if (!opened) return
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        resetScan()
+      } else {
+        startScanning()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [opened, resetScan, startScanning])
+
   // Trigger lookup when scan completes
   useEffect(() => {
     if (phase !== 'complete' || !barcodeSet) return
@@ -117,18 +133,10 @@ export function BarcodeScannerModal({
       try {
         let found: MetronSearchResultDto[] = []
 
-        // Try full UPC (main + supplement) first, then fall back to main only
         if (cancelled || !mountedRef.current) return
-        const fullResult = await searchMetron({ upc: barcodeSet.fullUpc })
-        if (fullResult && fullResult.length > 0) {
-          found = fullResult
-        } else if (barcodeSet.supplement) {
-          // Fallback: search with main barcode only
-          if (cancelled || !mountedRef.current) return
-          const mainResult = await searchMetron({ upc: barcodeSet.main })
-          if (mainResult && mainResult.length > 0) {
-            found = mainResult
-          }
+        const result = await searchMetron({ upc: barcodeSet.fullUpc })
+        if (result && result.length > 0) {
+          found = result
         }
 
         if (cancelled || !mountedRef.current) return
@@ -224,8 +232,7 @@ export function BarcodeScannerModal({
   }, [comicDetail, handleClose, onImported])
 
   const showCamera =
-    step === 'scanning' &&
-    (phase === 'starting' || phase === 'scanning' || phase === 'confirming')
+    step === 'scanning' && (phase === 'starting' || phase === 'scanning')
 
   return (
     <Modal
@@ -286,17 +293,10 @@ export function BarcodeScannerModal({
                 overflow: 'hidden',
               }}
             >
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: phase === 'starting' ? 'none' : 'block',
-                }}
+              <div
+                ref={containerRef}
+                className={classes.scanContainer}
+                style={{ width: '100%', height: '100%' }}
               />
 
               {phase === 'starting' && (
@@ -310,7 +310,7 @@ export function BarcodeScannerModal({
                 </Center>
               )}
 
-              {(phase === 'scanning' || phase === 'confirming') && (
+              {phase === 'scanning' && (
                 <svg
                   style={{
                     position: 'absolute',
@@ -348,11 +348,7 @@ export function BarcodeScannerModal({
                     height="80"
                     rx="4"
                     fill="none"
-                    stroke={
-                      phase === 'confirming'
-                        ? 'var(--mantine-color-green-4)'
-                        : 'var(--mantine-color-violet-4)'
-                    }
+                    stroke="var(--mantine-color-violet-4)"
                     strokeWidth="2"
                   >
                     <animate
@@ -367,11 +363,7 @@ export function BarcodeScannerModal({
                     y1="150"
                     x2="336"
                     y2="150"
-                    stroke={
-                      phase === 'confirming'
-                        ? 'var(--mantine-color-green-5)'
-                        : 'var(--mantine-color-violet-5)'
-                    }
+                    stroke="var(--mantine-color-violet-5)"
                     strokeWidth="1.5"
                     strokeOpacity="0.8"
                   >
@@ -398,12 +390,12 @@ export function BarcodeScannerModal({
               )}
             </Box>
 
-            {(phase === 'scanning' || phase === 'confirming') && (
+            {phase === 'scanning' && (
               <Stack align="center" gap="xs">
                 <Stepper
-                  active={phase === 'scanning' ? mainHits : supplementHits}
+                  active={hits}
                   size="xs"
-                  color={phase === 'confirming' ? 'green' : 'violet'}
+                  color="violet"
                 >
                   {[0, 1, 2].map((i) => (
                     <Stepper.Step
@@ -414,15 +406,8 @@ export function BarcodeScannerModal({
                   ))}
                 </Stepper>
                 <Text size="sm" c="dimmed" ta="center">
-                  {phase === 'scanning'
-                    ? 'Scanning main barcode...'
-                    : 'Looking for supplement barcode...'}
+                  Scanning barcode...
                 </Text>
-                {phase === 'confirming' && (
-                  <Badge variant="light" color="green" size="sm">
-                    Main: {barcodeSet?.main ?? ''}
-                  </Badge>
-                )}
               </Stack>
             )}
           </Stack>
@@ -551,23 +536,23 @@ export function BarcodeScannerModal({
         {step !== 'scanning' && step !== 'looking-up' && (
           <Group justify="flex-end" gap="sm" wrap="wrap">
             {step === 'preview' && results.length > 1 && (
-              <Button
+              <CSButton
                 variant="subtle"
                 size="sm"
                 rightSection={<IconArrowLeft size={14} />}
                 onClick={() => setStep('results')}
               >
                 Back to Results
-              </Button>
+              </CSButton>
             )}
-            <Button
+            <CSButton
               variant="subtle"
               size="sm"
               rightSection={<IconRefresh size={14} />}
               onClick={handleScanAgain}
             >
               Scan Again
-            </Button>
+            </CSButton>
             {step === 'preview' && (
               <CSButton
                 rightSection={<IconCheck size={16} />}

@@ -5,6 +5,7 @@
 - **Always use [Mantine v8](https://mantine.dev/)** for all UI components — never use plain HTML elements for UI (no `<button>`, `<input>`, `<select>`, `<table>`, etc.).
 - Use Mantine components: `Button`, `TextInput`, `Select`, `Table`, `Card`, `Badge`, `Alert`, `Modal`, `Pagination`, `Loader`, `Skeleton`, etc.
 - Use **Mantine style props** (e.g., `mt="md"`, `p="lg"`, `c="dimmed"`) and `createStyles` / CSS Modules only when Mantine style props are insufficient. **Do not use SCSS modules.**
+- Always prefer npm over pnpm for CLI commands to ensure consistent environment
 
 ## Theme & Dark Mode
 
@@ -35,7 +36,7 @@
 - **Loading states**: Use `Loader` or `Skeleton` components.
 - **Lists/Grids**: Use `SimpleGrid` for responsive grid layouts, `Card` for items.
 - **Buttons**: Use `CSButton` from `apps/web/src/app/components/cs-button.tsx` for all action and form buttons.
-  Defaults to `justify="space-between"` and `miw={160}`. Only use plain Mantine `Button` for
+  Defaults to `justify="space-between"`, `miw={160}` and the icon in `rightSection` prop. Only use plain Mantine `Button` for
   back/navigation links (`variant="subtle"`), icon-only buttons, or `size="xs"` small buttons.
 
 ## Tech Stack
@@ -72,7 +73,7 @@ When adding a new DB field, update the backup system to keep it schema-resilient
 
 - For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
 - When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
-- Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
+- Prefix nx commands with the workspace's package manager (e.g., `npm exec nx test`) - avoids using globally installed CLI
 - You have access to the Nx MCP server and its tools, use them to help the user
 - For Nx plugin best practices, check `node_modules/@nx/<plugin>/PLUGIN.md`. Not all plugins have this file - proceed without it if unavailable.
 - NEVER guess CLI flags - always check nx_docs or `--help` first when unsure
