@@ -1,6 +1,7 @@
 import { ComicListItemDto } from '@comic-shelf/shared-types'
-import { Card, Image, Group, Badge, Text, ActionIcon } from '@mantine/core'
+import { Card, Image, Group, Badge, Text, ActionIcon, Box } from '@mantine/core'
 import { IconPlus } from '@tabler/icons-react'
+import { memo } from 'react'
 import placeholderImg from '../../../assets/comic-card-placeholder.webp'
 import { formatPrice } from '../../../utils/format'
 import { Link } from 'react-router-dom'
@@ -13,7 +14,13 @@ interface ComicCardProps {
   selected?: boolean
 }
 
-export function ComicCard({ comic, onAcquire, acquiring, onSelect, selected }: ComicCardProps) {
+export const ComicCard = memo(function ComicCard({
+  comic,
+  onAcquire,
+  acquiring,
+  onSelect,
+  selected,
+}: ComicCardProps) {
   const isMissing = comic.collectionWishlist === 'MISSING'
 
   const baseStyle = {
@@ -63,40 +70,31 @@ export function ComicCard({ comic, onAcquire, acquiring, onSelect, selected }: C
           bottom: 0,
           left: 0,
           right: 0,
-          padding: 'var(--mantine-spacing-md)',
+          padding: 'var(--mantine-spacing-sm)',
           background:
-            'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.95) 100%)',
+            'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.95) 100%)',
         }}
       >
-        <Group justify="space-between" mb="xs">
-          <Badge color="violet" size="md">
-            #{comic.issueNumber ?? '—'}
-          </Badge>
-          {isMissing ? (
-            <Badge color="orange" size="md">
-              Missing
-            </Badge>
-          ) : comic.read ? (
-            <Badge color="green" size="md">
-              Read
-            </Badge>
-          ) : (
-            <Badge color="red" size="md">
-              Unread
-            </Badge>
-          )}
-        </Group>
         <Text fw={600} lineClamp={2} size="sm" c="white">
           {comic.title}
         </Text>
 
         <Group mt="xs" gap="xs" wrap="wrap" justify="space-between">
-          {comic.year && (
-            <Text size="xs" c="gray.4">
-              {comic.year}
-            </Text>
+          {isMissing ? (
+            <Badge color="orange" size="sm">
+              Missing
+            </Badge>
+          ) : comic.read ? (
+            <Badge color="green" size="sm">
+              Read
+            </Badge>
+          ) : (
+            <Badge color="red" size="sm">
+              Unread
+            </Badge>
           )}
-          <Text size="xs" c="gray.4">
+
+          <Text size="xs" fw={900} c="white">
             {formatPrice(comic.coverPriceCents, comic.coverPriceCurrency) ??
               '—'}
           </Text>
@@ -119,6 +117,24 @@ export function ComicCard({ comic, onAcquire, acquiring, onSelect, selected }: C
           </Badge>
         </Group>
       )}
+      <Box
+        h="fit-content"
+        w="fit-content"
+        px="xs"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 4,
+
+          textAlign: 'center',
+          border: '4px solid black',
+          backgroundColor: 'var(--mantine-color-gray-0)',
+        }}
+      >
+        <Text fw={900} size="lg" c="black">
+          {comic.issueNumber ?? '—'}
+        </Text>
+      </Box>
       {isMissing && onAcquire && (
         <ActionIcon
           size="md"
@@ -175,4 +191,4 @@ export function ComicCard({ comic, onAcquire, acquiring, onSelect, selected }: C
       {innerContent}
     </Card>
   )
-}
+})

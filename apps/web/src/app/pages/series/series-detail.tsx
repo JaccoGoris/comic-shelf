@@ -1,14 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
-  Box,
-  Flex,
   Title,
   Group,
   Badge,
   Text,
   Button,
-  SimpleGrid,
   Stack,
   Progress,
   Center,
@@ -28,6 +25,7 @@ import {
 import type { TrackedSeriesDto } from '@comic-shelf/shared-types'
 import { ComicCard } from '../comic-list/comic-card'
 import { ComicDetailPanel } from '../comic-list/components/comic-detail-panel'
+import { ComicGrid } from '../../components/comic-grid'
 
 export function SeriesDetailPage() {
   const { metronSeriesId: metronSeriesIdParam } = useParams<{
@@ -47,15 +45,17 @@ export function SeriesDetailPage() {
 
   const selectComic = useCallback(
     (id: number | null) => {
-      const params = new URLSearchParams(searchParams)
-      if (id !== null) {
-        params.set('comic', String(id))
-      } else {
-        params.delete('comic')
-      }
-      setSearchParams(params)
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev)
+        if (id !== null) {
+          params.set('comic', String(id))
+        } else {
+          params.delete('comic')
+        }
+        return params
+      })
     },
-    [searchParams, setSearchParams]
+    [setSearchParams]
   )
 
   const loadData = useCallback(async () => {
@@ -160,74 +160,65 @@ export function SeriesDetailPage() {
             radius="xl"
             mb="sm"
           />
+          <ComicGrid.Toolbar />
         </>
       )}
     </>
   )
 
-  const gridSection = loading ? (
-    <Stack gap="md">
-      <Skeleton height={40} w={300} />
-      <Skeleton height={16} />
-      <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 4, lg: 6 }} spacing="md">
-        {Array.from({ length: 24 }).map((_, i) => (
-          <Skeleton key={i} height={200} radius="md" />
-        ))}
-      </SimpleGrid>
+  const gridSection = (
+    <Stack style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} gap="md">
+      {loading ? (
+        <ComicGrid.Section>
+          {Array.from({ length: 24 }).map((_, i) => (
+            <Skeleton key={i} height={200} radius="md" />
+          ))}
+        </ComicGrid.Section>
+      ) : error ? (
+        <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
+          {error}
+        </Alert>
+      ) : issues.length === 0 ? (
+        <Center py="xl">
+          <Text c="dimmed">No issues found for this series.</Text>
+        </Center>
+      ) : (
+        <ComicGrid.Section>
+          {issues.map((issue) => (
+            <ComicCard
+              key={issue.id}
+              comic={issue}
+              onAcquire={
+                issue.collectionType === 'MISSING' ? handleAcquire : undefined
+              }
+              acquiring={acquiringIds.has(issue.id)}
+              onSelect={selectComic}
+              selected={issue.id === Number(selectedComicId)}
+            />
+          ))}
+        </ComicGrid.Section>
+      )}
     </Stack>
-  ) : error ? (
-    <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red">
-      {error}
-    </Alert>
-  ) : issues.length === 0 ? (
-    <Center py="xl">
-      <Text c="dimmed">No issues found for this series.</Text>
-    </Center>
-  ) : (
-    <SimpleGrid
-      cols={
-        selectedComicId
-          ? { base: 1, xs: 2, sm: 2, md: 3, lg: 4 }
-          : { base: 1, xs: 2, sm: 3, md: 4, lg: 6 }
-      }
-      spacing="md"
-    >
-      {issues.map((issue) => (
-        <ComicCard
-          key={issue.id}
-          comic={issue}
-          onAcquire={
-            issue.collectionType === 'MISSING' ? handleAcquire : undefined
-          }
-          acquiring={acquiringIds.has(issue.id)}
-          onSelect={selectComic}
-          selected={issue.id === Number(selectedComicId)}
-        />
-      ))}
-    </SimpleGrid>
   )
 
-  return selectedComicId ? (
-    <Flex style={{ height: 'calc(100dvh - var(--app-shell-header-height) - var(--app-shell-padding) * 2)', overflow: 'hidden' }}>
-      <Box style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <Container size="xl" pt="md" pb="sm" style={{ flexShrink: 0 }}>
-          {headerSection}
-        </Container>
-        <Box style={{ flex: 1, overflowY: 'auto' }}>
-          <Container size="xl">
-            {gridSection}
-          </Container>
-        </Box>
-      </Box>
-      <ComicDetailPanel
-        comicId={selectedComicId}
-        onClose={() => selectComic(null)}
-      />
-    </Flex>
-  ) : (
-    <Container size="xl" pt="md">
-      {headerSection}
-      {gridSection}
-    </Container>
+  return (
+    <Group wrap="nowrap">
+      <Container
+        size="xl"
+        h="calc(100dvh - var(--app-shell-header-offset, 0px))"
+        py="md"
+        display="flex"
+        style={{ flexDirection: 'column', flex: 1, minWidth: 0 }}
+      >
+        {headerSection}
+        {gridSection}
+      </Container>
+      {selectedComicId && (
+        <ComicDetailPanel
+          comicId={selectedComicId}
+          onClose={() => selectComic(null)}
+        />
+      )}
+    </Group>
   )
 }

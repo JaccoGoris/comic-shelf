@@ -16,13 +16,10 @@ import type {
   SeriesDto,
 } from '@comic-shelf/shared-types'
 import {
-  Box,
   Container,
-  Flex,
   Title,
   TextInput,
   Select,
-  SimpleGrid,
   Text,
   Group,
   Loader,
@@ -31,7 +28,7 @@ import {
   Anchor,
   Divider,
 } from '@mantine/core'
-import { useDisclosure, useIntersection } from '@mantine/hooks'
+import { useDisclosure } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import {
   IconSearch,
@@ -48,6 +45,18 @@ import { MetronAddModal } from '../metron-add'
 import { CSButton } from '../../components/cs-button'
 import { BarcodeScannerModal } from './components/barcode-scanner-modal'
 import { ComicDetailPanel } from './components/comic-detail-panel'
+import { ComicGrid } from '../../components/comic-grid'
+
+const readData = [
+  { value: 'true', label: 'Read' },
+  { value: 'false', label: 'Unread' },
+]
+
+const groupByData = [
+  { value: 'series', label: 'Series' },
+  { value: 'publisher', label: 'Publisher' },
+  { value: 'none', label: 'None' },
+]
 
 export function ComicsListPage() {
   const [
@@ -79,6 +88,8 @@ export function ComicsListPage() {
   const [acquiringIds, setAcquiringIds] = useState<Set<number>>(new Set())
 
   const pageRef = useRef(1)
+  const loadingMoreRef = useRef(false)
+  const hasMoreRef = useRef(false)
 
   const search = searchParams.get('search') ?? ''
   const publisherId = searchParams.get('publisherId') ?? ''
@@ -89,18 +100,20 @@ export function ComicsListPage() {
 
   const selectComic = useCallback(
     (id: number | null) => {
-      const params = new URLSearchParams(searchParams)
-      if (id !== null) {
-        params.set('comic', String(id))
-      } else {
-        params.delete('comic')
-      }
-      setSearchParams(params)
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev)
+        if (id !== null) {
+          params.set('comic', String(id))
+        } else {
+          params.delete('comic')
+        }
+        return params
+      })
     },
-    [searchParams, setSearchParams]
+    [setSearchParams]
   )
 
-  const { ref: sentinelRef, entry } = useIntersection({ threshold: 0.1 })
+  const closePanel = useCallback(() => selectComic(null), [selectComic])
 
   const buildFilters = useCallback(
     (page: number): ComicFilters => {
@@ -137,8 +150,11 @@ export function ComicsListPage() {
     }
   }, [buildFilters])
 
+  loadingMoreRef.current = loadingMore
+  hasMoreRef.current = hasMore
+
   const fetchMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
+    if (loadingMoreRef.current || !hasMoreRef.current) return
     setLoadingMore(true)
     const nextPage = pageRef.current + 1
     try {
@@ -156,19 +172,22 @@ export function ComicsListPage() {
     } finally {
       setLoadingMore(false)
     }
-  }, [buildFilters, loadingMore, hasMore])
+  }, [buildFilters])
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+      if (scrollHeight - scrollTop - clientHeight < 300) {
+        fetchMore()
+      }
+    },
+    [fetchMore]
+  )
 
   // Initial fetch and refetch on filter changes
   useEffect(() => {
     fetchComics()
   }, [fetchComics])
-
-  // Infinite scroll trigger
-  useEffect(() => {
-    if (entry?.isIntersecting && hasMore && !loading && !loadingMore) {
-      fetchMore()
-    }
-  }, [entry?.isIntersecting, hasMore, loading, loadingMore, fetchMore])
 
   // Load filter options
   useEffect(() => {
@@ -232,26 +251,15 @@ export function ComicsListPage() {
     updateFilter('search', searchInput)
   }
 
-  const publisherData = publishers.map((p) => ({
-    value: String(p.id),
-    label: p.name,
-  }))
+  const publisherData = useMemo(
+    () => publishers.map((p) => ({ value: String(p.id), label: p.name })),
+    [publishers]
+  )
 
-  const seriesData = series.map((s) => ({
-    value: String(s.id),
-    label: s.name,
-  }))
-
-  const readData = [
-    { value: 'true', label: 'Read' },
-    { value: 'false', label: 'Unread' },
-  ]
-
-  const groupByData = [
-    { value: 'series', label: 'Series' },
-    { value: 'publisher', label: 'Publisher' },
-    { value: 'none', label: 'None' },
-  ]
+  const seriesData = useMemo(
+    () => series.map((s) => ({ value: String(s.id), label: s.name })),
+    [series]
+  )
 
   type VolumeGroup = { volume: string; comics: ComicListItemDto[] }
   type SeriesGroup = { series: string; volumes: VolumeGroup[] }
@@ -320,41 +328,37 @@ export function ComicsListPage() {
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
   }, [comics, groupBy])
 
-  const handleAcquire = async (id: number) => {
-    setAcquiringIds((prev) => new Set(prev).add(id))
-    try {
-      await updateComic(id, { collectionWishlist: 'COLLECTION' })
-      await syncSingleComic(id)
-      notifications.show({
-        title: 'Issue Acquired',
-        message: 'Issue added to your collection and synced with Metron.',
-        color: 'green',
-      })
-      await fetchComics()
-    } catch {
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to acquire issue.',
-        color: 'red',
-      })
-    } finally {
-      setAcquiringIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }
-  }
+  const handleAcquire = useCallback(
+    async (id: number) => {
+      setAcquiringIds((prev) => new Set(prev).add(id))
+      try {
+        await updateComic(id, { collectionWishlist: 'COLLECTION' })
+        await syncSingleComic(id)
+        notifications.show({
+          title: 'Issue Acquired',
+          message: 'Issue added to your collection and synced with Metron.',
+          color: 'green',
+        })
+        await fetchComics()
+      } catch {
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to acquire issue.',
+          color: 'red',
+        })
+      } finally {
+        setAcquiringIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      }
+    },
+    [fetchComics]
+  )
 
   const renderGrid = (items: ComicListItemDto[]) => (
-    <SimpleGrid
-      cols={
-        selectedComicId
-          ? { base: 1, xs: 2, sm: 2, md: 3, lg: 4 }
-          : { base: 1, xs: 2, sm: 3, md: 4, lg: 6 }
-      }
-      spacing="md"
-    >
+    <ComicGrid.Section>
       {items.map((comic) => (
         <ComicCard
           key={comic.id}
@@ -367,11 +371,11 @@ export function ComicsListPage() {
           selected={comic.id === Number(selectedComicId)}
         />
       ))}
-    </SimpleGrid>
+    </ComicGrid.Section>
   )
 
   const headerSection = (
-    <>
+    <Stack mb="md" gap="md">
       <Group justify="space-between" align="center" mb="lg">
         {editingTitle ? (
           <TextInput
@@ -401,13 +405,22 @@ export function ComicsListPage() {
           </Group>
         )}
         <Group gap="xs">
-          <CSButton rightSection={<IconPlus size={16} />} onClick={openCreateModal}>
+          <CSButton
+            rightSection={<IconPlus size={16} />}
+            onClick={openCreateModal}
+          >
             Add Comic
           </CSButton>
-          <CSButton rightSection={<IconAtom size={16} />} onClick={openMetronModal}>
+          <CSButton
+            rightSection={<IconAtom size={16} />}
+            onClick={openMetronModal}
+          >
             Add from Metron
           </CSButton>
-          <CSButton rightSection={<IconBarcode size={16} />} onClick={openScannerModal}>
+          <CSButton
+            rightSection={<IconBarcode size={16} />}
+            onClick={openScannerModal}
+          >
             Scan Barcode
           </CSButton>
         </Group>
@@ -427,6 +440,7 @@ export function ComicsListPage() {
           />
         </form>
         <Select
+          miw={180}
           placeholder="All Publishers"
           data={publisherData}
           value={publisherId || null}
@@ -435,6 +449,7 @@ export function ComicsListPage() {
           searchable
         />
         <Select
+          miw={180}
           placeholder="All Series"
           data={seriesData}
           value={seriesId || null}
@@ -443,6 +458,7 @@ export function ComicsListPage() {
           searchable
         />
         <Select
+          miw={180}
           placeholder="Read & Unread"
           data={readData}
           value={read || null}
@@ -450,6 +466,7 @@ export function ComicsListPage() {
           clearable
         />
         <Select
+          miw={180}
           placeholder="Group by"
           data={groupByData}
           value={groupBy}
@@ -457,17 +474,25 @@ export function ComicsListPage() {
         />
       </Group>
 
-      {/* Stats */}
+      {/* Stats + view mode */}
       {!loading && (
-        <Text size="sm" c="dimmed" mb="md">
-          {total} comics
-        </Text>
+        <ComicGrid.Toolbar
+          extra={
+            <Text size="sm" c="dimmed">
+              {total} comics
+            </Text>
+          }
+        />
       )}
-    </>
+    </Stack>
   )
 
   const gridSection = (
-    <>
+    <Stack
+      onScroll={handleScroll}
+      style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}
+      gap="md"
+    >
       {/* Initial loading */}
       {loading && (
         <Center py="xl">
@@ -546,43 +571,32 @@ export function ComicsListPage() {
         </Center>
       )}
 
-      {/* Infinite scroll sentinel */}
-      <div ref={sentinelRef} style={{ height: 1 }} />
-
       {/* Loading more indicator */}
       {loadingMore && (
         <Center py="md">
           <Loader size="sm" />
         </Center>
       )}
-    </>
+    </Stack>
   )
 
   return (
     <>
-      {selectedComicId ? (
-        <Flex style={{ height: 'calc(100dvh - var(--app-shell-header-height) - var(--app-shell-padding) * 2)', overflow: 'hidden' }}>
-          <Box style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-            <Container size="xl" pt="md" pb="sm" style={{ flexShrink: 0 }}>
-              {headerSection}
-            </Container>
-            <Box style={{ flex: 1, overflowY: 'auto' }}>
-              <Container size="xl">
-                {gridSection}
-              </Container>
-            </Box>
-          </Box>
-          <ComicDetailPanel
-            comicId={selectedComicId}
-            onClose={() => selectComic(null)}
-          />
-        </Flex>
-      ) : (
-        <Container size="xl" pt="md">
+      <Group wrap="nowrap">
+        <Container
+          size="xl"
+          h="calc(100dvh - var(--app-shell-header-offset, 0px))"
+          py="md"
+          display="flex"
+          style={{ flexDirection: 'column', flex: 1, minWidth: 0 }}
+        >
           {headerSection}
           {gridSection}
         </Container>
-      )}
+        {selectedComicId && (
+          <ComicDetailPanel comicId={selectedComicId} onClose={closePanel} />
+        )}
+      </Group>
       <CreateComicModal
         opened={createModalOpened}
         onClose={closeCreateModal}

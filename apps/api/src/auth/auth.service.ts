@@ -2,6 +2,7 @@ import { Injectable, ConflictException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import * as bcrypt from 'bcrypt'
 import { UsersService } from '../users/users.service'
+import { OidcService } from './oidc.service'
 import type { AuthStatusDto, UserDto } from '@comic-shelf/shared-types'
 import type { JwtPayload } from './strategies/jwt.strategy'
 
@@ -9,7 +10,8 @@ import type { JwtPayload } from './strategies/jwt.strategy'
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly oidcService: OidcService
   ) {}
 
   async validateUser(username: string, password: string) {
@@ -49,16 +51,20 @@ export class AuthService {
   async getStatus(cookies: Record<string, string>): Promise<AuthStatusDto> {
     const count = await this.usersService.count()
     const setupComplete = count > 0
+    const oidcEnabled = this.oidcService.isEnabled()
     const token = cookies?.['access_token']
-    if (!token) return { setupComplete, authenticated: false, user: null }
+    if (!token)
+      return { setupComplete, authenticated: false, user: null, oidcEnabled }
 
     try {
       const payload = this.jwtService.verify<JwtPayload>(token)
       const user = await this.usersService.findById(payload.sub)
-      if (!user) return { setupComplete, authenticated: false, user: null }
+      if (!user)
+        return { setupComplete, authenticated: false, user: null, oidcEnabled }
       return {
         setupComplete,
         authenticated: true,
+        oidcEnabled,
         user: {
           id: user.id,
           username: user.username,
@@ -67,7 +73,7 @@ export class AuthService {
         },
       }
     } catch {
-      return { setupComplete, authenticated: false, user: null }
+      return { setupComplete, authenticated: false, user: null, oidcEnabled }
     }
   }
 }

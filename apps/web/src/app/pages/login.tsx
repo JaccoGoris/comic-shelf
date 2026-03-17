@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Center,
   Paper,
@@ -9,18 +9,23 @@ import {
   Stack,
   Text,
   Alert,
+  Divider,
+  Button,
 } from '@mantine/core'
-import { IconAlertCircle } from '@tabler/icons-react'
+import { IconAlertCircle, IconLogin } from '@tabler/icons-react'
 import { useAuth } from '../../auth/auth-context'
 import { CSButton } from '../components/cs-button'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, oidcEnabled } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const oidcError = searchParams.get('error') === 'oidc_no_user'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +51,12 @@ export function LoginPage() {
               Sign in to your account
             </Text>
           </Stack>
+          {oidcError && (
+            <Alert icon={<IconAlertCircle size={16} />} color="orange">
+              No matching account found. Ask an admin to create your account
+              first.
+            </Alert>
+          )}
           {error && (
             <Alert icon={<IconAlertCircle size={16} />} color="red">
               {error}
@@ -71,6 +82,20 @@ export function LoginPage() {
               </CSButton>
             </Stack>
           </form>
+          {oidcEnabled && (
+            <>
+              <Divider label="or" labelPosition="center" />
+              <Button
+                component="a"
+                href="/api/auth/oidc"
+                variant="default"
+                fullWidth
+                leftSection={<IconLogin size={16} />}
+              >
+                Sign in with OIDC
+              </Button>
+            </>
+          )}
         </Stack>
       </Paper>
     </Center>

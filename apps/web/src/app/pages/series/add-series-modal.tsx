@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useMediaQuery } from '@mantine/hooks'
+import { useIsMobile } from '../../hooks/use-is-mobile'
 import {
   Modal,
   TextInput,
@@ -46,7 +46,7 @@ export function AddSeriesModal({
   onTracked,
   initialSeriesName,
 }: AddSeriesModalProps) {
-  const isMobile = useMediaQuery('(max-width: 48em)')
+  const isMobile = useIsMobile()
   const [step, setStep] = useState<Step>('search')
   const [seriesName, setSeriesName] = useState('')
 

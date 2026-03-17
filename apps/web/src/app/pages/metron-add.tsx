@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMediaQuery } from '@mantine/hooks'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import {
   searchMetron,
   getMetronIssue,
@@ -51,7 +51,7 @@ export function MetronAddModal({
   onClose,
   onImported,
 }: MetronAddModalProps) {
-  const isMobile = useMediaQuery('(max-width: 48em)')
+  const isMobile = useIsMobile()
   const [step, setStep] = useState<Step>('search')
   const [searchMode, setSearchMode] = useState<SearchMode>('upc')
   const [upc, setUpc] = useState('')

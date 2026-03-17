@@ -29,6 +29,7 @@ export interface AuthStatusDto {
   setupComplete: boolean
   authenticated: boolean
   user: UserDto | null
+  oidcEnabled: boolean
 }
 
 // ─── Enums ───────────────────────────────────────────────

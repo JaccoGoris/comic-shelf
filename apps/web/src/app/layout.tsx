@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, Outlet, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  Outlet,
+  useNavigate,
+  useLocation,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   AppShell,
   Group,
@@ -91,7 +97,7 @@ export function Layout() {
         breakpoint: 'sm',
         collapsed: { mobile: !opened, desktop: !sidebarOpen },
       }}
-      padding="md"
+      padding={0}
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
@@ -204,7 +210,7 @@ export function Layout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="md">
+      <AppShell.Navbar py="xs">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

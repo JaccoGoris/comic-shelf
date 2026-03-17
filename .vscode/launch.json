@@ -8,7 +8,7 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["nx", "serve", "@comic-shelf/api"],
       "env": {
-        "NODE_OPTIONS": "--inspect=9229"
+        "NODE_OPTIONS": "--inspect=9339"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",

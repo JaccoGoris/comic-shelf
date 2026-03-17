@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useMediaQuery } from '@mantine/hooks'
+import { useIsMobile } from '../../../hooks/use-is-mobile'
 import { notifications } from '@mantine/notifications'
 import {
   Modal,
@@ -57,7 +57,7 @@ export function BarcodeScannerModal({
   onClose,
   onImported,
 }: BarcodeScannerModalProps) {
-  const isMobile = useMediaQuery('(max-width: 48em)')
+  const isMobile = useIsMobile()
 
   const [step, setStep] = useState<ModalStep>('scanning')
   const [lookupError, setLookupError] = useState<string | null>(null)

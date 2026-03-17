@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Modal, TextInput, Stack, Autocomplete } from '@mantine/core'
-import { useMediaQuery, useDebouncedValue } from '@mantine/hooks'
+import { useDebouncedValue } from '@mantine/hooks'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { notifications } from '@mantine/notifications'
 import { createComic, getPublishers, getSeries } from '../../api/client'
 import { getErrorMessage } from '../../utils/error'
@@ -18,7 +19,7 @@ export function CreateComicModal({
   onClose,
   onCreated,
 }: CreateComicModalProps) {
-  const isMobile = useMediaQuery('(max-width: 48em)')
+  const isMobile = useIsMobile()
   const [title, setTitle] = useState('')
   const [issueNumber, setIssueNumber] = useState('')
   const [volume, setVolume] = useState('')

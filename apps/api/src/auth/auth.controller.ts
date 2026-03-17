@@ -5,12 +5,16 @@ import {
   Body,
   Req,
   Res,
+  Query,
   UseGuards,
   HttpCode,
+  BadRequestException,
 } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
 import type { Request, Response } from 'express'
 import { AuthService } from './auth.service'
+import { OidcService } from './oidc.service'
+import { UsersService } from '../users/users.service'
 import { Public } from './decorators/public.decorator'
 import type { SetupDto } from '@comic-shelf/shared-types'
 
@@ -39,7 +43,11 @@ function setCookieToken(req: Request, res: Response, token: string) {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly oidcService: OidcService,
+    private readonly usersService: UsersService
+  ) {}
 
   @Public()
   @Get('status')
@@ -77,5 +85,78 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('access_token', { path: '/' })
     return { message: 'Logged out' }
+  }
+
+  @Public()
+  @Get('oidc')
+  async oidcRedirect(@Res() res: Response) {
+    if (!this.oidcService.isEnabled()) {
+      throw new BadRequestException('OIDC is not enabled')
+    }
+    const { url, state, codeVerifier } =
+      await this.oidcService.getAuthorizationUrl()
+    const statePayload = JSON.stringify({ state, codeVerifier })
+    res.cookie('oidc_state', statePayload, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 5 * 60 * 1000, // 5 minutes
+    })
+    res.redirect(302, url)
+  }
+
+  @Public()
+  @Get('oidc/callback')
+  async oidcCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() req: Request,
+    @Res() res: Response
+  ) {
+    if (!this.oidcService.isEnabled()) {
+      throw new BadRequestException('OIDC is not enabled')
+    }
+
+    const rawCookie = (req.cookies as Record<string, string>)['oidc_state']
+    res.clearCookie('oidc_state', { path: '/' })
+
+    if (!rawCookie) {
+      return res.redirect('/login?error=oidc_no_user')
+    }
+
+    let cookieState: string
+    let codeVerifier: string
+    try {
+      const parsed = JSON.parse(rawCookie) as {
+        state: string
+        codeVerifier: string
+      }
+      cookieState = parsed.state
+      codeVerifier = parsed.codeVerifier
+    } catch {
+      return res.redirect('/login?error=oidc_no_user')
+    }
+
+    if (!code || !state || state !== cookieState) {
+      return res.redirect('/login?error=oidc_no_user')
+    }
+
+    try {
+      const { preferredUsername } = await this.oidcService.handleCallback(
+        code,
+        state,
+        codeVerifier
+      )
+      const user = await this.usersService.findByUsername(preferredUsername)
+      if (!user) {
+        return res.redirect('/login?error=oidc_no_user')
+      }
+
+      const { token } = await this.authService.login(user)
+      setCookieToken(req, res, token)
+      return res.redirect('/')
+    } catch {
+      return res.redirect('/login?error=oidc_no_user')
+    }
   }
 }
