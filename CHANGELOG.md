@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.6.0...v1.7.0) (2026-03-17)
+
+
+### Features
+
+* added oidc support, reworked comic list and detail layout ([32f84f0](https://github.com/JaccoGoris/comic-shelf/commit/32f84f075f1c4336c0aa17c945b973573a843ab8))
+
 ## [1.6.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.5.0...v1.6.0) (2026-03-14)
 
 
