@@ -2,5 +2,17 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "@comic-shelf/metron-client",
   "sourceRoot": "libs/metron-client/src",
-  "projectType": "library"
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/metron-client",
+        "main": "libs/metron-client/src/index.ts",
+        "tsConfig": "libs/metron-client/tsconfig.json",
+        "assets": []
+      }
+    }
+  }
 }
