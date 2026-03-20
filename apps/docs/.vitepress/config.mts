@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Comic Shelf',
   description: 'A self-hosted comic book collection manager',
-  base: '/comic-shelf/',
+  base: '/',
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/getting-started/installation' },

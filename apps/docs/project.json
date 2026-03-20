@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "docs",
+  "name": "@comic-shelf/docs",
   "sourceRoot": "apps/docs",
   "projectType": "application",
   "targets": {
@@ -13,7 +13,9 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/.vitepress/dist"],
+      "outputs": [
+        "{projectRoot}/.vitepress/dist"
+      ],
       "options": {
         "command": "npx vitepress build apps/docs",
         "cwd": "."

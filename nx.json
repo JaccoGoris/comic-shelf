@@ -107,5 +107,6 @@
         "linter": "eslint"
       }
     }
-  }
+  },
+  "analytics": true
 }
