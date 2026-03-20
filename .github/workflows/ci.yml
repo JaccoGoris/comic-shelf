@@ -9,12 +9,14 @@ on:
       - '.release-please-manifest.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'apps/docs/**'
   pull_request:
     paths-ignore:
       - 'CHANGELOG.md'
       - '.release-please-manifest.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'apps/docs/**'
 
 permissions:
   actions: read

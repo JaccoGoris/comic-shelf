@@ -1063,6 +1063,11 @@ export type CharacterFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Skip the first `n` Characters.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of Characters.
+   */
   distinct?: Prisma.CharacterScalarFieldEnum | Prisma.CharacterScalarFieldEnum[]
 }
 

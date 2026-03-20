@@ -1221,6 +1221,11 @@ export type ComicGenreFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` ComicGenres.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of ComicGenres.
+   */
   distinct?: Prisma.ComicGenreScalarFieldEnum | Prisma.ComicGenreScalarFieldEnum[]
 }
 
