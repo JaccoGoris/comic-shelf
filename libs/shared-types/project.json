@@ -2,5 +2,17 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "@comic-shelf/shared-types",
   "sourceRoot": "libs/shared-types/src",
-  "projectType": "library"
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared-types",
+        "main": "libs/shared-types/src/index.ts",
+        "tsConfig": "libs/shared-types/tsconfig.json",
+        "assets": []
+      }
+    }
+  }
 }

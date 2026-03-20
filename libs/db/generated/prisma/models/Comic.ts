@@ -4978,6 +4978,11 @@ export type ComicFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    * Skip the first `n` Comics.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of Comics.
+   */
   distinct?: Prisma.ComicScalarFieldEnum | Prisma.ComicScalarFieldEnum[]
 }
 

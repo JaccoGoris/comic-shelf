@@ -2,5 +2,17 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "@comic-shelf/db",
   "sourceRoot": "libs/db/src",
-  "projectType": "library"
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/db",
+        "main": "libs/db/src/index.ts",
+        "tsConfig": "libs/db/tsconfig.json",
+        "assets": []
+      }
+    }
+  }
 }

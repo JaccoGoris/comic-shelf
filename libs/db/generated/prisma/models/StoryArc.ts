@@ -1031,6 +1031,11 @@ export type StoryArcFindManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Skip the first `n` StoryArcs.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of StoryArcs.
+   */
   distinct?: Prisma.StoryArcScalarFieldEnum | Prisma.StoryArcScalarFieldEnum[]
 }
 
