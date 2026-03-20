@@ -154,3 +154,9 @@ The dev setup runs the API and frontend as separate processes with hot reload. T
 ## License
 
 MIT — see [LICENSE](./LICENSE)
+
+---
+
+## AI Disclosure
+
+This project was built with the assistance of [Claude](https://claude.ai) (Anthropic), an AI assistant. Code, documentation, and configuration were generated and refined through AI-assisted development.

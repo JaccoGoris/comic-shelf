@@ -33,3 +33,7 @@ features:
     title: Docker Ready
     details: Deploy the entire stack with Docker Compose — API, web app, and PostgreSQL included.
 ---
+
+<div style="text-align: center; padding: 2rem 0; color: var(--vp-c-text-3); font-size: 0.875rem;">
+  This project was built with the assistance of <a href="https://claude.ai" style="color: inherit; text-decoration: underline;">Claude</a> (Anthropic), an AI assistant.
+</div>
