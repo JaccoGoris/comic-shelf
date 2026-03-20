@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.8.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.7.0...v1.8.0) (2026-03-20)
+
+
+### Features
+
+* scaffold vitepress docs site ([37f8845](https://github.com/JaccoGoris/comic-shelf/commit/37f8845d1bdb327981f4810af8ba87a92f0f67a8))
+
+
+### Bug Fixes
+
+* enlint ([866ecdf](https://github.com/JaccoGoris/comic-shelf/commit/866ecdfc53fd7b4cd24fdb7ce6b0afc0d882e88e))
+* excluded docs from nx lint ([b0a5824](https://github.com/JaccoGoris/comic-shelf/commit/b0a58244ea219a7f97a57bb9462861069892d5cd))
+* make all libs buildable for enforce-module-boundaries ([cfdab9b](https://github.com/JaccoGoris/comic-shelf/commit/cfdab9b053e9b49c2ab39c73fd3dc6a3871705eb))
+* remove .vitepress/cache from repo to fix Nx project graph error ([21fbd23](https://github.com/JaccoGoris/comic-shelf/commit/21fbd23cb8a85c38f61a06fe8a2b5127241db78a))
+
 ## [1.7.0](https://github.com/JaccoGoris/comic-shelf/compare/v1.6.0...v1.7.0) (2026-03-17)
 
 
