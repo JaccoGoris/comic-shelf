@@ -1,0 +1,23 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "docs",
+  "sourceRoot": "apps/docs",
+  "projectType": "application",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitepress dev apps/docs",
+        "cwd": "."
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/.vitepress/dist"],
+      "options": {
+        "command": "npx vitepress build apps/docs",
+        "cwd": "."
+      }
+    }
+  }
+}
