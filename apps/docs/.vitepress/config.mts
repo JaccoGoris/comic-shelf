@@ -15,8 +15,6 @@ export default defineConfig({
         text: 'Getting Started',
         items: [
           { text: 'Installation', link: '/getting-started/installation' },
-          { text: 'Dev Setup', link: '/getting-started/dev-setup' },
-          { text: 'Running', link: '/getting-started/running' },
         ],
       },
       {
@@ -44,6 +42,12 @@ export default defineConfig({
           { text: 'Docker', link: '/deployment/docker' },
           { text: 'Environment Variables', link: '/deployment/environment-variables' },
           { text: 'CI/CD', link: '/deployment/ci-cd' },
+        ],
+      },
+      {
+        text: 'Contributing',
+        items: [
+          { text: 'Development Setup', link: '/getting-started/contributing' },
         ],
       },
       {

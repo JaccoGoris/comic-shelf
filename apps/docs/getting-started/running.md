@@ -13,7 +13,7 @@ This starts:
 
 ## First-Time Setup
 
-On first run, navigate to `http://localhost:4200/setup` to create the admin account.
+On first run, the app will automatically guide you through creating the admin account.
 
 ## Individual Services
 
